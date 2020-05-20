@@ -16,6 +16,7 @@ public class SystemConfig {
     public final static String LITEMALL_WX_INDEX_CATLOG_LIST = "litemall_wx_catlog_list";
     public final static String LITEMALL_WX_INDEX_CATLOG_GOODS = "litemall_wx_catlog_goods";
     public final static String LITEMALL_WX_SHARE = "litemall_wx_share";
+    public final static String LITEMALL_WX_LOGIN_ONLY = "litemall_wx_login_only";
     // 运费相关配置
     public final static String LITEMALL_EXPRESS_FREIGHT_VALUE = "litemall_express_freight_value";
     public final static String LITEMALL_EXPRESS_FREIGHT_MIN = "litemall_express_freight_min";
@@ -77,6 +78,9 @@ public class SystemConfig {
     public static boolean isAutoCreateShareImage() {
         return getConfigBoolean(LITEMALL_WX_SHARE);
     }
+    public static boolean isWXLoginOnly() {
+        return getConfigBoolean(LITEMALL_WX_LOGIN_ONLY);
+    }
 
     public static BigDecimal getFreight() {
         return getConfigBigDec(LITEMALL_EXPRESS_FREIGHT_VALUE);
@@ -130,5 +134,9 @@ public class SystemConfig {
         for (Map.Entry<String, String> entry : data.entrySet()) {
             SYSTEM_CONFIGS.put(entry.getKey(), entry.getValue());
         }
+    }
+
+    public static String getValue(String key) {
+        return getConfig(key);
     }
 }
