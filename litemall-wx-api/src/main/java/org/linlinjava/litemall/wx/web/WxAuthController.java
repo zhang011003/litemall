@@ -3,14 +3,16 @@ package org.linlinjava.litemall.wx.web;
 import cn.binarywang.wx.miniapp.api.WxMaService;
 import cn.binarywang.wx.miniapp.bean.WxMaJscode2SessionResult;
 import cn.binarywang.wx.miniapp.bean.WxMaPhoneNumberInfo;
+import me.chanjar.weixin.common.api.WxConsts;
+import me.chanjar.weixin.common.error.WxErrorException;
+import me.chanjar.weixin.mp.api.WxMpService;
+import me.chanjar.weixin.mp.bean.result.WxMpOAuth2AccessToken;
+import me.chanjar.weixin.mp.bean.result.WxMpUser;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.linlinjava.litemall.core.notify.NotifyService;
 import org.linlinjava.litemall.core.notify.NotifyType;
-import org.linlinjava.litemall.core.util.CharUtil;
-import org.linlinjava.litemall.core.util.JacksonUtil;
-import org.linlinjava.litemall.core.util.RegexUtil;
-import org.linlinjava.litemall.core.util.ResponseUtil;
+import org.linlinjava.litemall.core.util.*;
 import org.linlinjava.litemall.core.util.bcrypt.BCryptPasswordEncoder;
 import org.linlinjava.litemall.db.domain.LitemallUser;
 import org.linlinjava.litemall.db.service.CouponAssignService;
@@ -21,7 +23,7 @@ import org.linlinjava.litemall.wx.dto.UserToken;
 import org.linlinjava.litemall.wx.dto.WxLoginInfo;
 import org.linlinjava.litemall.wx.service.CaptchaCodeManager;
 import org.linlinjava.litemall.wx.service.UserTokenManager;
-import org.linlinjava.litemall.core.util.IpUtil;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -49,6 +51,8 @@ public class WxAuthController {
 
     @Autowired
     private WxMaService wxService;
+    @Autowired
+    private WxMpService wxMpService;
 
     @Autowired
     private NotifyService notifyService;
@@ -108,7 +112,7 @@ public class WxAuthController {
     }
 
     /**
-     * 微信登录
+     * 微信登录(小程序和h5页面)
      *
      * @param wxLoginInfo 请求内容，{ code: xxx, userInfo: xxx }
      * @param request     请求对象
@@ -118,19 +122,37 @@ public class WxAuthController {
     public Object loginByWeixin(@RequestBody WxLoginInfo wxLoginInfo, HttpServletRequest request) {
         String code = wxLoginInfo.getCode();
         UserInfo userInfo = wxLoginInfo.getUserInfo();
-        if (code == null || userInfo == null) {
+        if (code == null) {
             return ResponseUtil.badArgument();
         }
 
         String sessionKey = null;
         String openId = null;
-        try {
-            WxMaJscode2SessionResult result = this.wxService.getUserService().getSessionInfo(code);
-            sessionKey = result.getSessionKey();
-            openId = result.getOpenid();
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (userInfo != null) {
+            try {
+                WxMaJscode2SessionResult result = this.wxService.getUserService().getSessionInfo(code);
+                sessionKey = result.getSessionKey();
+                openId = result.getOpenid();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            try {
+                WxMpOAuth2AccessToken accessToken = this.wxMpService.oauth2getAccessToken(code);
+                WxMpUser wxMpUser = this.wxMpService.getUserService().userInfo(accessToken.getOpenId());
+                userInfo = new UserInfo();
+                BeanUtils.copyProperties(wxMpUser, userInfo);
+                userInfo.setAvatarUrl(wxMpUser.getHeadImgUrl());
+                userInfo.setGender(wxMpUser.getSex().byteValue());
+                userInfo.setNickName(wxMpUser.getNickname());
+                sessionKey = accessToken.getAccessToken();
+                openId = accessToken.getOpenId();
+                logger.info("用户信息：" + userInfo);
+            } catch (WxErrorException e) {
+                e.printStackTrace();
+            }
         }
+
 
         if (sessionKey == null || openId == null) {
             return ResponseUtil.fail();
@@ -173,7 +195,24 @@ public class WxAuthController {
         return ResponseUtil.ok(result);
     }
 
+    @GetMapping("/authorize")
+    public Object authorize(@RequestParam("returnUrl") String returnUrl) {
+        String redirectURL = wxMpService.oauth2buildAuthorizationUrl(returnUrl, WxConsts.OAuth2Scope.SNSAPI_USERINFO, returnUrl);
+        logger.info("【微信网页授权】获取code,redirectURL=" + redirectURL);
+        return ResponseUtil.ok(redirectURL);
+    }
 
+//    @PostMapping("/loginByWeixinMp")
+//    public Object loginByWeixinMp(@RequestParam("openId") String openId) {
+//        try {
+//            WxMpUser wxMpUser = wxMpService.getUserService().userInfo(openId);
+//            logger.info("");
+//        } catch (WxErrorException e) {
+//            e.printStackTrace();
+//        }
+////        logger.info("【微信网页授权】获取code,redirectURL=" + redirectURL);
+//        return ResponseUtil.ok();
+//    }
     /**
      * 请求注册验证码
      *

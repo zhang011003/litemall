@@ -26,7 +26,13 @@ export function catalogCurrent(query) {
 }
 
 const AuthLoginByWeixin='wx/auth/login_by_weixin'; //微信登录
-
+export function authLoginByWeixin(data) {
+  return request({
+    url: AuthLoginByWeixin,
+    method: 'post',
+    data
+  })
+}
 
 const AuthLoginByAccount='wx/auth/login'; //账号登录
 export function authLoginByAccount(data) {
@@ -36,6 +42,15 @@ export function authLoginByAccount(data) {
     data
   })
 }
+const AuthGetWeiXinCode='wx/auth/authorize'; //获取微信code
+export function authGetWeiXinCode(returnUrl) {
+  return request({
+    url: AuthGetWeiXinCode,
+    method: 'get',
+    params: {"returnUrl": returnUrl}
+  })
+}
+
 const AuthLogout='wx/auth/logout'; //账号登出
 export function authLogout() {
   return request({

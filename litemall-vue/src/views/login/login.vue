@@ -41,7 +41,7 @@
       <van-button size="large" type="danger" :loading="isLogining" @click="loginSubmit">登录</van-button>
     </md-field-group>
 
-
+        <img src="../../assets/images/icon32_appwx_logo.png" @click="loginByWeiXin" width="32" height="32"/>
       <div class="text-desc text-center bottom_positon">技术支持: litemall</div>
 
 	</div>
@@ -52,6 +52,7 @@ import field from '@/components/field/';
 import fieldGroup from '@/components/field-group/';
 
 import { authLoginByAccount } from '@/api/api';
+import { authGetWeiXinCode } from '@/api/api';
 import { setLocalStorage } from '@/utils/local-storage';
 import { emailReg, mobileReg } from '@/utils/validate';
 
@@ -112,6 +113,19 @@ export default {
       }
     },
 
+    loginByWeiXin() {
+      this.isLogining = true;
+      try {
+          this.validate();
+          authGetWeiXinCode("http://e3f6e93a.ngrok.io/#").then(res => {
+              window.location = res.data.data;
+          });
+          this.isLogining = false;
+      } catch (err) {
+          console.log(err.message);
+          this.isLogining = false;
+      }
+    },
     routerRedirect() {
       // const { query } = this.$route;
       // this.$router.replace({

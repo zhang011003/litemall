@@ -1,5 +1,6 @@
 package org.linlinjava.litemall.wx.service;
 
+import cn.binarywang.wx.miniapp.api.WxMaService;
 import com.github.binarywang.wxpay.bean.notify.WxPayNotifyResponse;
 import com.github.binarywang.wxpay.bean.notify.WxPayOrderNotifyResult;
 import com.github.binarywang.wxpay.bean.order.WxPayMpOrderResult;
@@ -9,9 +10,14 @@ import com.github.binarywang.wxpay.bean.result.BaseWxPayResult;
 import com.github.binarywang.wxpay.constant.WxPayConstants;
 import com.github.binarywang.wxpay.exception.WxPayException;
 import com.github.binarywang.wxpay.service.WxPayService;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.qiniu.util.Md5;
+import lombok.val;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.linlinjava.litemall.core.config.LeShuaProperties;
 import org.linlinjava.litemall.core.express.ExpressService;
 import org.linlinjava.litemall.core.express.dao.ExpressInfo;
 import org.linlinjava.litemall.core.notify.NotifyService;
@@ -19,31 +25,31 @@ import org.linlinjava.litemall.core.notify.NotifyType;
 import org.linlinjava.litemall.core.qcode.QCodeService;
 import org.linlinjava.litemall.core.system.SystemConfig;
 import org.linlinjava.litemall.core.task.TaskService;
-import org.linlinjava.litemall.core.util.DateTimeUtil;
-import org.linlinjava.litemall.core.util.JacksonUtil;
-import org.linlinjava.litemall.core.util.ResponseUtil;
+import org.linlinjava.litemall.core.util.*;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
 import org.linlinjava.litemall.db.util.CouponUserConstant;
 import org.linlinjava.litemall.db.util.GrouponConstant;
 import org.linlinjava.litemall.db.util.OrderHandleOption;
 import org.linlinjava.litemall.db.util.OrderUtil;
-import org.linlinjava.litemall.core.util.IpUtil;
+import org.linlinjava.litemall.wx.leshua.LeShuaPayResponse;
+import org.linlinjava.litemall.wx.leshua.LeShuaPayResult;
 import org.linlinjava.litemall.wx.task.OrderUnpaidTask;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
+import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.linlinjava.litemall.wx.util.WxResponseCode.*;
 
@@ -108,6 +114,11 @@ public class WxOrderService {
     @Autowired
     private LitemallAftersaleService aftersaleService;
 
+    @Autowired
+    private LeShuaProperties leShuaProperties;
+
+    @Autowired
+    private RestTemplate restTemplate;
     /**
      * 订单列表
      *
@@ -575,18 +586,49 @@ public class WxOrderService {
         }
         WxPayMpOrderResult result = null;
         try {
-            WxPayUnifiedOrderRequest orderRequest = new WxPayUnifiedOrderRequest();
-            orderRequest.setOutTradeNo(order.getOrderSn());
-            orderRequest.setOpenid(openid);
-            orderRequest.setBody("订单：" + order.getOrderSn());
-            // 元转成分
-            int fee = 0;
-            BigDecimal actualPrice = order.getActualPrice();
-            fee = actualPrice.multiply(new BigDecimal(100)).intValue();
-            orderRequest.setTotalFee(fee);
-            orderRequest.setSpbillCreateIp(IpUtil.getIpAddr(request));
+            if (!leShuaProperties.isEnable()) {
+                WxPayUnifiedOrderRequest orderRequest = new WxPayUnifiedOrderRequest();
+                orderRequest.setOutTradeNo(order.getOrderSn());
+                orderRequest.setOpenid(openid);
+                orderRequest.setBody("订单：" + order.getOrderSn());
+                // 元转成分
+                int fee = 0;
+                BigDecimal actualPrice = order.getActualPrice();
+                fee = actualPrice.multiply(new BigDecimal(100)).intValue();
+                orderRequest.setTotalFee(fee);
+                orderRequest.setSpbillCreateIp(IpUtil.getIpAddr(request));
+                result = wxPayService.createOrder(orderRequest);
+            } else {
+                // 参考文档 https://www.yuque.com/leshuazf/doc/zhifujiaoyi#YGAT6
+                String reqUrl = leShuaProperties.getUrl();
+                Map<String,String> postDataMap = Maps.newHashMap();
+                postDataMap.put("service","get_tdcode");
+                postDataMap.put("pay_way", "WXZF");
+                postDataMap.put("amount", "1");
+                postDataMap.put("jspay_flag","2");
+                postDataMap.put("third_order_id", order.getOrderSn());
+                postDataMap.put("merchant_id", leShuaProperties.getMerchantId());
+                postDataMap.put("nonce_str", String.valueOf(System.currentTimeMillis()));
+                postDataMap.put("sub_openid", openid);
+                postDataMap.put("sign", LeShuaUtil.getSign(postDataMap, leShuaProperties.getKey()));
 
-            result = wxPayService.createOrder(orderRequest);
+                StringBuilder postDataBuilder = postDataMap.keySet().stream().collect(StringBuilder::new, (x, y) -> x.append(y).append("=").append(postDataMap.get(y)).append("&"),(x, y)-> x.append(y));
+                postDataBuilder.deleteCharAt(postDataBuilder.length() - 1);
+
+                ResponseEntity<String> responseEntity = restTemplate.postForEntity(reqUrl+ "?" + postDataBuilder.toString(), null, String.class);
+                String responseBody = responseEntity.getBody();
+                logger.info("Invoke leshua, result is: " + responseBody);
+                LeShuaPayResponse leShuaPayResponse = LeShuaPayResult.fromXML(responseBody, LeShuaPayResponse.class);
+                LeShuaPayResponse.JSPayInfo jsPayInfo = leShuaPayResponse.getJsPayInfo();
+                logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
+                result = WxPayMpOrderResult.builder().appId(jsPayInfo.getAppId())
+                        .packageValue(jsPayInfo.getPackageValue())
+                        .timeStamp(jsPayInfo.getTimeStamp())
+                        .nonceStr(jsPayInfo.getNonceStr())
+                        .signType(jsPayInfo.getSignType())
+                        .paySign(jsPayInfo.getPaySign())
+                        .build();
+            }
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseUtil.fail(ORDER_PAY_FAIL, "订单不能支付");
@@ -644,7 +686,6 @@ public class WxOrderService {
             orderRequest.setSpbillCreateIp(IpUtil.getIpAddr(request));
 
             result = wxPayService.createOrder(orderRequest);
-
         } catch (Exception e) {
             e.printStackTrace();
         }

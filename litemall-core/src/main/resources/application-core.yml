@@ -1,14 +1,24 @@
 litemall:
+  # 测试使用乐刷，正式需要换成微信支付
+  leshua:
+    enable: false
+    url: https://paygate.leshuazf.com/cgi-bin/lepos_pay_gateway.cgi
+    merchant_id: 4014116132
+    key: EE085A0ABA9D22493B7971B2E1AEB4DF
+
   # 开发者应该设置成自己的wx相关信息
   wx:
-    app-id: wxa5b486c6b918ecfb
-    app-secret: e04004829d4c383b4db7769d88dfbca1
-    mch-id: 111111
-    mch-key: xxxxxx
+#    app-id: wxc2c84d6c53366329
+#    app-secret: 4c8e07a7311c70d781abba25dc458344
+    app-id: wx080d8c9a162dc2b1
+    app-secret: 0418ccad717ef9aa6298dc3d9344e04c
+    mch-id: 1534210531
+    mch-key: dme0kMJgZ1KJ4aRC59cgXQZvdv0YEFAp
     notify-url: http://www.example.com/wx/order/pay-notify
     # 商户证书文件路径
     # 请参考“商户证书”一节 https://pay.weixin.qq.com/wiki/doc/api/wxa/wxa_api.php?chapter=4_3
     key-path: xxxxx
+    aes-key: dme0kMJgZ1KJ4aRC59cgXQZvdv0YEFAp
 
   #通知相关配置
   notify:

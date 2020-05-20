@@ -1,10 +1,12 @@
 package org.linlinjava.litemall.core.config;
 
+import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @ConfigurationProperties(prefix = "litemall.wx")
+@Data
 public class WxProperties {
 
     private String appId;
@@ -18,6 +20,8 @@ public class WxProperties {
     private String notifyUrl;
 
     private String keyPath;
+
+    private String aesKey;
 
     public String getNotifyUrl() {
         return notifyUrl;

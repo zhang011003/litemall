@@ -179,9 +179,11 @@
 </template>
 
 <script>
-import { getHome, goodsCategory, couponReceive } from '@/api/api';
+import { getHome, goodsCategory, couponReceive, authLoginByWeixin } from '@/api/api';
 import scrollFixed from '@/mixin/scroll-fixed';
 import _ from 'lodash';
+import { getUrlParam } from '@/utils/location-param';
+import { setLocalStorage } from '@/utils/local-storage';
 
 import {
   List,
@@ -214,6 +216,7 @@ export default {
 
   created() {
     this.initViews();
+    this.authLoginByWeiXin();
   },
 
   methods: {
@@ -244,7 +247,22 @@ export default {
       getHome().then(res => {
         this.shopInfos = res.data.data;
       });
-    }
+    },
+    authLoginByWeiXin() {
+      let code = getUrlParam("code");
+      if (code != "") {
+        authLoginByWeixin({"code": code}).then(res => {
+          this.userInfo = res.data.data.userInfo;
+          setLocalStorage({
+            Authorization: res.data.data.token,
+            avatar: this.userInfo.avatarUrl,
+            nickName: this.userInfo.nickName
+          });
+
+        })
+      }
+    },
+
   },
 
   components: {

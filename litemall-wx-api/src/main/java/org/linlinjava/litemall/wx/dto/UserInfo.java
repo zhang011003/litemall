@@ -1,5 +1,12 @@
 package org.linlinjava.litemall.wx.dto;
 
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+
+@Data
+@Accessors(chain = true)
 public class UserInfo {
     private String nickName;
     private String avatarUrl;
