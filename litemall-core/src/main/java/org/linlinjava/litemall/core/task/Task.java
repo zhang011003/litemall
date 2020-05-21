@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 public abstract class Task implements Delayed, Runnable{
     private String id = "";
     private long start = 0;
+    protected boolean needReenterQueue = false;
 
     public Task(String id, long delayInMilliseconds){
         this.id = id;
@@ -17,6 +18,10 @@ public abstract class Task implements Delayed, Runnable{
 
     public String getId() {
         return id;
+    }
+
+    public boolean needReenterQueue() {
+        return needReenterQueue;
     }
 
     @Override

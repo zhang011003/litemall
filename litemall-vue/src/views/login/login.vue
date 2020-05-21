@@ -117,7 +117,7 @@ export default {
       this.isLogining = true;
       try {
           this.validate();
-          authGetWeiXinCode("http://e3f6e93a.ngrok.io/#").then(res => {
+          authGetWeiXinCode("http://192.168.0.7:6255/#").then(res => {
               window.location = res.data.data;
           });
           this.isLogining = false;

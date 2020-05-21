@@ -21,6 +21,9 @@ public class TaskService {
                     try {
                         Task task = delayQueue.take();
                         task.run();
+                        if (task.needReenterQueue()) {
+                            addTask(task);
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

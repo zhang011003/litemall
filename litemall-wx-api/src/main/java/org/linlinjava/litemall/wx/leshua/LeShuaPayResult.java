@@ -47,7 +47,7 @@ public class LeShuaPayResult {
         return xstream;
     }
 
-    public static <T extends BaseWxPayResult> T fromXML(String xmlString, Class<T> clazz) {
+    public static <T extends BaseLeShuaResult> T fromXML(String xmlString, Class<T> clazz) {
         XStream xstream = getInstance();
         xstream.processAnnotations(clazz);
         T result = (T) xstream.fromXML(xmlString);

@@ -1,7 +1,11 @@
 package org.linlinjava.litemall.core.util;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.qiniu.util.Md5;
+import org.linlinjava.litemall.core.config.LeShuaProperties;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;

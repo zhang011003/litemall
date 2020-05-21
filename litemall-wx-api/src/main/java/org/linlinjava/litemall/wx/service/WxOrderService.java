@@ -1,6 +1,5 @@
 package org.linlinjava.litemall.wx.service;
 
-import cn.binarywang.wx.miniapp.api.WxMaService;
 import com.github.binarywang.wxpay.bean.notify.WxPayNotifyResponse;
 import com.github.binarywang.wxpay.bean.notify.WxPayOrderNotifyResult;
 import com.github.binarywang.wxpay.bean.order.WxPayMpOrderResult;
@@ -10,10 +9,7 @@ import com.github.binarywang.wxpay.bean.result.BaseWxPayResult;
 import com.github.binarywang.wxpay.constant.WxPayConstants;
 import com.github.binarywang.wxpay.exception.WxPayException;
 import com.github.binarywang.wxpay.service.WxPayService;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.qiniu.util.Md5;
-import lombok.val;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,26 +28,20 @@ import org.linlinjava.litemall.db.util.CouponUserConstant;
 import org.linlinjava.litemall.db.util.GrouponConstant;
 import org.linlinjava.litemall.db.util.OrderHandleOption;
 import org.linlinjava.litemall.db.util.OrderUtil;
-import org.linlinjava.litemall.wx.leshua.LeShuaH5PayResponse;
 import org.linlinjava.litemall.wx.leshua.LeShuaPayResponse;
 import org.linlinjava.litemall.wx.leshua.LeShuaPayResult;
+import org.linlinjava.litemall.wx.task.OrderStatusQueryTask;
 import org.linlinjava.litemall.wx.task.OrderUnpaidTask;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -123,6 +113,9 @@ public class WxOrderService {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private LeShuaService leShuaService;
     /**
      * 订单列表
      *
@@ -479,6 +472,9 @@ public class WxOrderService {
         // 订单支付超期任务
         taskService.addTask(new OrderUnpaidTask(orderId));
 
+        // 订单状态主动查询
+        taskService.addTask(new OrderStatusQueryTask(orderId));
+
         Map<String, Object> data = new HashMap<>();
         data.put("orderId", orderId);
         if (grouponRulesId != null && grouponRulesId > 0) {
@@ -608,14 +604,8 @@ public class WxOrderService {
                 String reqUrl = leShuaProperties.getUrl();
                 Map<String, String> otherValueMap = Maps.newHashMap();
                 otherValueMap.put("jspay_flag","1");
-                Map<String,String> postDataMap = getPostDataMap(order.getOrderSn(), openid, otherValueMap);
 
-                StringBuilder postDataBuilder = postDataMap.keySet().stream().collect(StringBuilder::new, (x, y) -> x.append(y).append("=").append(postDataMap.get(y)).append("&"),(x, y)-> x.append(y));
-                postDataBuilder.deleteCharAt(postDataBuilder.length() - 1);
-
-                ResponseEntity<String> responseEntity = restTemplate.postForEntity(reqUrl+ "?" + postDataBuilder.toString(), null, String.class);
-                String responseBody = responseEntity.getBody();
-                logger.info("Invoke leshua, result is: " + responseBody);
+                String responseBody = leShuaService.invoke(reqUrl, order.getOrderSn(), openid, otherValueMap);
                 LeShuaPayResponse leShuaPayResponse = LeShuaPayResult.fromXML(responseBody, LeShuaPayResponse.class);
                 LeShuaPayResponse.JSPayInfo jsPayInfo = leShuaPayResponse.getJsPayInfo();
                 logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
@@ -698,18 +688,11 @@ public class WxOrderService {
                 Map<String, String> otherValueMap = Maps.newHashMap();
                 otherValueMap.put("jump_url", redirectUrl);
                 otherValueMap.put("jspay_flag","2");
-                Map<String, String> postDataMap = getPostDataMap(order.getOrderSn(), openid, otherValueMap);
-                StringBuilder postDataBuilder = postDataMap.keySet().stream().collect(StringBuilder::new, (x, y) -> x.append(y).append("=").append(postDataMap.get(y)).append("&"),(x, y)-> x.append(y));
-                postDataBuilder.deleteCharAt(postDataBuilder.length() - 1);
 
-                String url = reqUrl + "?" + postDataBuilder.toString();
-                logger.info("Invoke leshua, url is: " + url);
-                ResponseEntity<String> responseEntity = restTemplate.postForEntity(url, null, String.class);
-                String responseBody = responseEntity.getBody();
-                logger.info("Invoke leshua, result is: " + responseBody);
-                LeShuaH5PayResponse leShuaPayResponse = LeShuaPayResult.fromXML(responseBody, LeShuaH5PayResponse.class);
+                String responseBody = leShuaService.invoke(reqUrl, order.getOrderSn(), openid, otherValueMap);
+                LeShuaPayResponse leShuaPayResponse = LeShuaPayResult.fromXML(responseBody, LeShuaPayResponse.class);
 
-                if (leShuaPayResponse.getRespCode() == 0 && leShuaPayResponse.getResultCodeInt() == 0) {
+                if (leShuaPayResponse.isSuccess()) {
                     logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
                     result = new WxPayMwebOrderResult(leShuaPayResponse.getJspayUrl());
                 } else {
@@ -721,24 +704,6 @@ public class WxOrderService {
         }
 
         return ResponseUtil.ok(result);
-    }
-
-    private Map<String, String> getPostDataMap(String orderSn, String openid, Map<String, String> otherValueMap) {
-        Map<String,String> postDataMap = Maps.newHashMap();
-        postDataMap.put("service","get_tdcode");
-        postDataMap.put("pay_way", "WXZF");
-        postDataMap.put("amount", "1");
-        postDataMap.put("jspay_flag","1");
-        postDataMap.put("third_order_id", orderSn);
-        postDataMap.put("merchant_id", leShuaProperties.getMerchantId());
-        postDataMap.put("nonce_str", String.valueOf(System.currentTimeMillis()));
-        postDataMap.put("sub_openid", openid);
-        if (StringUtils.hasText(leShuaProperties.getNotifyUrl())) {
-            postDataMap.put("notify_url", leShuaProperties.getNotifyUrl());
-        }
-        postDataMap.putAll(otherValueMap);
-        postDataMap.put("sign", LeShuaUtil.getSign(postDataMap, leShuaProperties.getKey()));
-        return postDataMap;
     }
 
     /**

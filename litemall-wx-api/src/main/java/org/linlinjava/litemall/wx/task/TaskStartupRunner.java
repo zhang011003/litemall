@@ -38,6 +38,9 @@ public class TaskStartupRunner implements ApplicationRunner {
                 // 还没过期，则加入延迟队列
                 long delay = ChronoUnit.MILLIS.between(now, expire);
                 taskService.addTask(new OrderUnpaidTask(order.getId(), delay));
+
+                // 增加查询订单状态的任务
+                taskService.addTask(new OrderStatusQueryTask(order.getId()));
             }
         }
     }

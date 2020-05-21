@@ -9,18 +9,13 @@ import lombok.Data;
 
 @XStreamAlias("leshua")
 @Data
-public class LeShuaPayResponse extends BaseWxPayResult {
-    @XStreamAlias("resp_code")
-    protected String respCode;
-
-    @XStreamAlias("result_code")
-    protected String resultCode;
+public class LeShuaPayResponse extends BaseLeShuaResult {
 
     @XStreamAlias("jspay_info")
     private String jspayInfo;
 
-    @XStreamAlias("leshua_order_id")
-    private String leshuaOrderId;
+    @XStreamAlias("jspay_url")
+    private String jspayUrl;
 
     private JSPayInfo jsPayInfo;
 
