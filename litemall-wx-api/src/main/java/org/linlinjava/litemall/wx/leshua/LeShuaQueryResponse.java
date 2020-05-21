@@ -17,6 +17,9 @@ public class LeShuaQueryResponse extends BaseLeShuaResult {
     @XStreamAlias("status")
     private String status;
 
+    @XStreamAlias("out_transaction_id")
+    private String transactionId;
+
     public LeShuaStatus getLeShuaStatus() {
         return LeShuaStatus.getLeShuaStatus(getStatus());
     }

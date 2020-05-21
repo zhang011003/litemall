@@ -1,6 +1,7 @@
 package org.linlinjava.litemall.wx.task;
 
 import com.google.common.collect.Maps;
+import com.qcloud.cos.transfer.PauseStatus;
 import lombok.extern.java.Log;
 import lombok.extern.slf4j.Slf4j;
 import org.linlinjava.litemall.core.config.LeShuaProperties;
@@ -42,7 +43,6 @@ public class OrderStatusQueryTask extends Task {
     public void run() {
         log.info("系统开始更新订单状态---" + this.orderId);
 
-        //TODO: 需要判断是否是微信支付或乐刷支付，目前只支持乐刷支付后的查询场景
         LitemallOrderService orderService = BeanUtil.getBean(LitemallOrderService.class);
         LeShuaService leShuaService = BeanUtil.getBean(LeShuaService.class);
         LeShuaProperties leShuaProperties = BeanUtil.getBean(LeShuaProperties.class);
@@ -55,29 +55,52 @@ public class OrderStatusQueryTask extends Task {
             return;
         }
 
-        Map<String, String> otherValueMap = Maps.newHashMap();
-        otherValueMap.put("service", "query_status");
+        boolean needUpdateStatus = false;
+        boolean querySuccess = false;
 
-        String result = leShuaService.invoke(leShuaProperties.getQueryUrl(), order.getOrderSn(), "", otherValueMap);
-        LeShuaQueryResponse leShuaQueryResponse = LeShuaPayResult.fromXML(result, LeShuaQueryResponse.class);
+        Short status = order.getOrderStatus();
+        String payId = order.getPayId();
 
-        boolean success = false;
-        if (leShuaQueryResponse.isSuccess()) {
-            // 更新订单状态
-            LeShuaStatus leShuaStatus = leShuaQueryResponse.getLeShuaStatus();
-            if (leShuaStatus != LeShuaStatus.PAYING ) {
-                success = true;
+        OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
+        switch (payType) {
+            case LeShua:
+                Map<String, String> otherValueMap = Maps.newHashMap();
+                otherValueMap.put("service", "query_status");
 
-                order.setOrderStatus(leShuaStatus.getOrderStatus());
-                order.setEndTime(LocalDateTime.now());
-                if (orderService.updateWithOptimisticLocker(order) == 0) {
-//            throw new RuntimeException("更新数据已失效");
-                    log.warn("订单数据状态更新失败， orderId={}", order.getId());
+                String result = leShuaService.invoke(leShuaProperties.getQueryUrl(), order.getOrderSn(), "", otherValueMap);
+                LeShuaQueryResponse leShuaQueryResponse = LeShuaPayResult.fromXML(result, LeShuaQueryResponse.class);
+                if (leShuaQueryResponse.isSuccess()) {
+                    querySuccess = true;
+
+                    // 更新订单状态
+                    LeShuaStatus leShuaStatus = leShuaQueryResponse.getLeShuaStatus();
+                    if (leShuaStatus != LeShuaStatus.PAYING) {
+                        needUpdateStatus = true;
+                        status = leShuaStatus.getOrderStatus();
+                        payId = leShuaQueryResponse.getTransactionId();
+                    }
                 }
+                break;
+            default:
+                // TODO: 其它支付类型也需要查询状态
+                needUpdateStatus = false;
+                querySuccess = true;
+                break;
+        }
+
+        if (needUpdateStatus) {
+            // 更新订单状态
+            order.setOrderStatus(status);
+            order.setPayId(payId);
+            order.setEndTime(LocalDateTime.now());
+            if (orderService.updateWithOptimisticLocker(order) == 0) {
+//            throw new RuntimeException("更新数据已失效");
+                log.warn("订单数据状态更新失败， orderId={}", order.getId());
             }
         }
-        if (!success){
-            // 需要重新入队列更新状态
+
+        // 查询接口不成功，需要重新入队列更新状态
+        if (!querySuccess){
             this.needReenterQueue = true;
             log.info("订单需要重新入队列更新状态，orderId={}", order.getId());
         }

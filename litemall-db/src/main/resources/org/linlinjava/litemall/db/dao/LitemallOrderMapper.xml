@@ -24,6 +24,7 @@
     <result column="actual_price" jdbcType="DECIMAL" property="actualPrice" />
     <result column="pay_id" jdbcType="VARCHAR" property="payId" />
     <result column="pay_time" jdbcType="TIMESTAMP" property="payTime" />
+    <result column="pay_type" jdbcType="VARCHAR" property="payType" />
     <result column="ship_sn" jdbcType="VARCHAR" property="shipSn" />
     <result column="ship_channel" jdbcType="VARCHAR" property="shipChannel" />
     <result column="ship_time" jdbcType="TIMESTAMP" property="shipTime" />
@@ -111,9 +112,9 @@
     -->
     id, user_id, order_sn, order_status, aftersale_status, consignee, mobile, address, 
     message, goods_price, freight_price, coupon_price, integral_price, groupon_price, 
-    order_price, actual_price, pay_id, pay_time, ship_sn, ship_channel, ship_time, refund_amount, 
-    refund_type, refund_content, refund_time, confirm_time, comments, end_time, add_time, 
-    update_time, deleted
+    order_price, actual_price, pay_id, pay_time, pay_type, ship_sn, ship_channel, ship_time, 
+    refund_amount, refund_type, refund_content, refund_time, confirm_time, comments, 
+    end_time, add_time, update_time, deleted
   </sql>
   <select id="selectByExample" parameterType="org.linlinjava.litemall.db.domain.LitemallOrderExample" resultMap="BaseResultMap">
     <!--
@@ -239,23 +240,23 @@
       address, message, goods_price, 
       freight_price, coupon_price, integral_price, 
       groupon_price, order_price, actual_price, 
-      pay_id, pay_time, ship_sn, 
-      ship_channel, ship_time, refund_amount, 
-      refund_type, refund_content, refund_time, 
-      confirm_time, comments, end_time, 
-      add_time, update_time, deleted
-      )
+      pay_id, pay_time, pay_type, 
+      ship_sn, ship_channel, ship_time, 
+      refund_amount, refund_type, refund_content, 
+      refund_time, confirm_time, comments, 
+      end_time, add_time, update_time, 
+      deleted)
     values (#{userId,jdbcType=INTEGER}, #{orderSn,jdbcType=VARCHAR}, #{orderStatus,jdbcType=SMALLINT}, 
       #{aftersaleStatus,jdbcType=SMALLINT}, #{consignee,jdbcType=VARCHAR}, #{mobile,jdbcType=VARCHAR}, 
       #{address,jdbcType=VARCHAR}, #{message,jdbcType=VARCHAR}, #{goodsPrice,jdbcType=DECIMAL}, 
       #{freightPrice,jdbcType=DECIMAL}, #{couponPrice,jdbcType=DECIMAL}, #{integralPrice,jdbcType=DECIMAL}, 
       #{grouponPrice,jdbcType=DECIMAL}, #{orderPrice,jdbcType=DECIMAL}, #{actualPrice,jdbcType=DECIMAL}, 
-      #{payId,jdbcType=VARCHAR}, #{payTime,jdbcType=TIMESTAMP}, #{shipSn,jdbcType=VARCHAR}, 
-      #{shipChannel,jdbcType=VARCHAR}, #{shipTime,jdbcType=TIMESTAMP}, #{refundAmount,jdbcType=DECIMAL}, 
-      #{refundType,jdbcType=VARCHAR}, #{refundContent,jdbcType=VARCHAR}, #{refundTime,jdbcType=TIMESTAMP}, 
-      #{confirmTime,jdbcType=TIMESTAMP}, #{comments,jdbcType=SMALLINT}, #{endTime,jdbcType=TIMESTAMP}, 
-      #{addTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, #{deleted,jdbcType=BIT}
-      )
+      #{payId,jdbcType=VARCHAR}, #{payTime,jdbcType=TIMESTAMP}, #{payType,jdbcType=VARCHAR}, 
+      #{shipSn,jdbcType=VARCHAR}, #{shipChannel,jdbcType=VARCHAR}, #{shipTime,jdbcType=TIMESTAMP}, 
+      #{refundAmount,jdbcType=DECIMAL}, #{refundType,jdbcType=VARCHAR}, #{refundContent,jdbcType=VARCHAR}, 
+      #{refundTime,jdbcType=TIMESTAMP}, #{confirmTime,jdbcType=TIMESTAMP}, #{comments,jdbcType=SMALLINT}, 
+      #{endTime,jdbcType=TIMESTAMP}, #{addTime,jdbcType=TIMESTAMP}, #{updateTime,jdbcType=TIMESTAMP}, 
+      #{deleted,jdbcType=BIT})
   </insert>
   <insert id="insertSelective" parameterType="org.linlinjava.litemall.db.domain.LitemallOrder">
     <!--
@@ -317,6 +318,9 @@
       </if>
       <if test="payTime != null">
         pay_time,
+      </if>
+      <if test="payType != null">
+        pay_type,
       </if>
       <if test="shipSn != null">
         ship_sn,
@@ -409,6 +413,9 @@
       </if>
       <if test="payTime != null">
         #{payTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="payType != null">
+        #{payType,jdbcType=VARCHAR},
       </if>
       <if test="shipSn != null">
         #{shipSn,jdbcType=VARCHAR},
@@ -522,6 +529,9 @@
       <if test="record.payTime != null">
         pay_time = #{record.payTime,jdbcType=TIMESTAMP},
       </if>
+      <if test="record.payType != null">
+        pay_type = #{record.payType,jdbcType=VARCHAR},
+      </if>
       <if test="record.shipSn != null">
         ship_sn = #{record.shipSn,jdbcType=VARCHAR},
       </if>
@@ -590,6 +600,7 @@
       actual_price = #{record.actualPrice,jdbcType=DECIMAL},
       pay_id = #{record.payId,jdbcType=VARCHAR},
       pay_time = #{record.payTime,jdbcType=TIMESTAMP},
+      pay_type = #{record.payType,jdbcType=VARCHAR},
       ship_sn = #{record.shipSn,jdbcType=VARCHAR},
       ship_channel = #{record.shipChannel,jdbcType=VARCHAR},
       ship_time = #{record.shipTime,jdbcType=TIMESTAMP},
@@ -665,6 +676,9 @@
       <if test="payTime != null">
         pay_time = #{payTime,jdbcType=TIMESTAMP},
       </if>
+      <if test="payType != null">
+        pay_type = #{payType,jdbcType=VARCHAR},
+      </if>
       <if test="shipSn != null">
         ship_sn = #{shipSn,jdbcType=VARCHAR},
       </if>
@@ -730,6 +744,7 @@
       actual_price = #{actualPrice,jdbcType=DECIMAL},
       pay_id = #{payId,jdbcType=VARCHAR},
       pay_time = #{payTime,jdbcType=TIMESTAMP},
+      pay_type = #{payType,jdbcType=VARCHAR},
       ship_sn = #{shipSn,jdbcType=VARCHAR},
       ship_channel = #{shipChannel,jdbcType=VARCHAR},
       ship_time = #{shipTime,jdbcType=TIMESTAMP},

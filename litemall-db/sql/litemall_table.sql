@@ -607,6 +607,7 @@ CREATE TABLE `litemall_order` (
   `actual_price` decimal(10,2) NOT NULL COMMENT '实付费用， = order_price - integral_price',
   `pay_id` varchar(63) DEFAULT NULL COMMENT '微信付款编号',
   `pay_time` datetime DEFAULT NULL COMMENT '微信付款时间',
+  `pay_type` varchar(16) DEFAULT NULL COMMENT '付款类型（微信、支付宝、乐刷）',
   `ship_sn` varchar(63) DEFAULT NULL COMMENT '发货编号',
   `ship_channel` varchar(63) DEFAULT NULL COMMENT '发货快递公司',
   `ship_time` datetime DEFAULT NULL COMMENT '发货开始时间',

@@ -663,6 +663,8 @@ public class WxOrderService {
         WxPayMwebOrderResult result = null;
         try {
             if (!leShuaProperties.isEnable()) {
+                order.setPayType(OrderUtil.PayType.WeiXin.getPayType());
+
                 WxPayUnifiedOrderRequest orderRequest = new WxPayUnifiedOrderRequest();
                 orderRequest.setOutTradeNo(order.getOrderSn());
                 orderRequest.setTradeType("MWEB");
@@ -676,6 +678,8 @@ public class WxOrderService {
 
                 result = wxPayService.createOrder(orderRequest);
             } else {
+                order.setPayType(OrderUtil.PayType.LeShua.getPayType());
+
                 LitemallUser user = userService.findById(userId);
                 String openid = user.getWeixinOpenid();
                 openid = "oFpyN0UXZdOdjtMyrGFE49vtY_AM";
@@ -701,6 +705,10 @@ public class WxOrderService {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+
+        if (orderService.updateWithOptimisticLocker(order) == 0) {
+            return ResponseUtil.updatedDateExpired();
         }
 
         return ResponseUtil.ok(result);
@@ -769,7 +777,9 @@ public class WxOrderService {
 
         order.setPayId(payId);
         order.setPayTime(LocalDateTime.now());
+        order.setPayType(OrderUtil.PayType.WeiXin.getPayType());
         order.setOrderStatus(OrderUtil.STATUS_PAY);
+
         if (orderService.updateWithOptimisticLocker(order) == 0) {
             return WxPayNotifyResponse.fail("更新数据已失效");
         }

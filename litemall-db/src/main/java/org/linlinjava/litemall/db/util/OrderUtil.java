@@ -3,6 +3,7 @@ package org.linlinjava.litemall.db.util;
 import org.linlinjava.litemall.db.domain.LitemallOrder;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /*
@@ -20,7 +21,25 @@ import java.util.List;
  * 当402系统自动确认收货以后，此时用户可以删除、去评价、或者再次购买
  */
 public class OrderUtil {
+    public enum PayType {
+        WeiXin("wx"), ZhiFuBao("zfb"), LeShua("ls");
+        private String payType;
 
+        PayType(String payType) {
+            this.payType = payType;
+        }
+
+        public String getPayType() {
+            return payType;
+        }
+
+        public static PayType getPayType(String payType) {
+            return Arrays.stream(PayType.values())
+                    .filter(p -> p.getPayType().equals(payType))
+                    .findFirst()
+                    .orElseThrow(IllegalArgumentException::new);
+        }
+    }
     public static final Short STATUS_CREATE = 101;
     public static final Short STATUS_PAY = 201;
     public static final Short STATUS_SHIP = 301;
