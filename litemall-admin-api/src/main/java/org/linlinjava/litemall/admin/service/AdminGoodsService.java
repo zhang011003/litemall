@@ -2,6 +2,7 @@ package org.linlinjava.litemall.admin.service;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.linlinjava.litemall.admin.dto.Goods;
 import org.linlinjava.litemall.admin.dto.GoodsAllinone;
 import org.linlinjava.litemall.admin.vo.CatVo;
 import org.linlinjava.litemall.core.qcode.QCodeService;
@@ -42,9 +43,9 @@ public class AdminGoodsService {
     @Autowired
     private QCodeService qCodeService;
 
-    public Object list(Integer goodsId, String goodsSn, String name,
+    public Object list(Goods goods,
                        Integer page, Integer limit, String sort, String order) {
-        List<LitemallGoods> goodsList = goodsService.querySelective(goodsId, goodsSn, name, page, limit, sort, order);
+        List<LitemallGoods> goodsList = goodsService.querySelective(goods.getGoodsId(), goods.getGoodsSn(), goods.getName(), page, limit, sort, order);
         return ResponseUtil.okList(goodsList);
     }
 

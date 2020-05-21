@@ -28,6 +28,14 @@
             <el-input v-model="dataForm.litemall_wx_catlog_goods" />
           </el-form-item>
         </el-tab-pane>
+        <el-tab-pane label="支付配置">
+          <el-form-item label="支付宝支付" prop="litemall_wx_pay_zfb">
+            <el-switch v-model="dataForm.litemall_wx_pay_zfb" />
+          </el-form-item>
+          <el-form-item label="微信支付" prop="litemall_wx_pay_wx">
+            <el-switch v-model="dataForm.litemall_wx_pay_wx" />
+          </el-form-item>
+        </el-tab-pane>
         <el-tab-pane label="其他配置">
           <el-form-item label="仅使用微信登录" prop="litemall_wx_login_only">
             <el-switch v-model="dataForm.litemall_wx_login_only" />
@@ -61,7 +69,9 @@ export default {
         litemall_wx_catlog_list: 0,
         litemall_wx_catlog_goods: 0,
         litemall_wx_share: false,
-        litemall_wx_login_only: true
+        litemall_wx_login_only: true,
+        litemall_wx_pay_wx: true,
+        litemall_wx_pay_zfb: false
       },
       rules: {
         litemall_wx_index_new: [
@@ -94,6 +104,8 @@ export default {
         this.dataForm = response.data.data
         this.dataForm.litemall_wx_share = JSON.parse(this.dataForm.litemall_wx_share)
         this.dataForm.litemall_wx_login_only = JSON.parse(this.dataForm.litemall_wx_login_only)
+        this.dataForm.litemall_wx_pay_wx = JSON.parse(this.dataForm.litemall_wx_pay_wx)
+        this.dataForm.litemall_wx_pay_zfb = JSON.parse(this.dataForm.litemall_wx_pay_zfb)
       })
     },
     cancel() {
