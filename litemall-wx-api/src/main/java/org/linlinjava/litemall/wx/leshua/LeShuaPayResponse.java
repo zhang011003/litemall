@@ -13,6 +13,9 @@ public class LeShuaPayResponse extends BaseWxPayResult {
     @XStreamAlias("resp_code")
     protected String respCode;
 
+    @XStreamAlias("result_code")
+    protected String resultCode;
+
     @XStreamAlias("jspay_info")
     private String jspayInfo;
 

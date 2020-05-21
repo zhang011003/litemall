@@ -119,6 +119,11 @@ public class WxOrderController {
         return wxOrderService.payNotify(request, response);
     }
 
+    @PostMapping("pay-notify-leshua")
+    public Object payNotifyLeshua(HttpServletRequest request, HttpServletResponse response) {
+        return wxOrderService.payNotifyLeshua(request, response);
+    }
+
     /**
      * 订单申请退款
      *

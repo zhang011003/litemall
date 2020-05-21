@@ -32,6 +32,7 @@ import org.linlinjava.litemall.db.util.CouponUserConstant;
 import org.linlinjava.litemall.db.util.GrouponConstant;
 import org.linlinjava.litemall.db.util.OrderHandleOption;
 import org.linlinjava.litemall.db.util.OrderUtil;
+import org.linlinjava.litemall.wx.leshua.LeShuaH5PayResponse;
 import org.linlinjava.litemall.wx.leshua.LeShuaPayResponse;
 import org.linlinjava.litemall.wx.leshua.LeShuaPayResult;
 import org.linlinjava.litemall.wx.task.OrderUnpaidTask;
@@ -42,12 +43,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -581,6 +585,7 @@ public class WxOrderService {
 
         LitemallUser user = userService.findById(userId);
         String openid = user.getWeixinOpenid();
+        openid = "oFpyN0UXZdOdjtMyrGFE49vtY_AM";
         if (openid == null) {
             return ResponseUtil.fail(AUTH_OPENID_UNACCESS, "订单不能支付");
         }
@@ -601,16 +606,9 @@ public class WxOrderService {
             } else {
                 // 参考文档 https://www.yuque.com/leshuazf/doc/zhifujiaoyi#YGAT6
                 String reqUrl = leShuaProperties.getUrl();
-                Map<String,String> postDataMap = Maps.newHashMap();
-                postDataMap.put("service","get_tdcode");
-                postDataMap.put("pay_way", "WXZF");
-                postDataMap.put("amount", "1");
-                postDataMap.put("jspay_flag","2");
-                postDataMap.put("third_order_id", order.getOrderSn());
-                postDataMap.put("merchant_id", leShuaProperties.getMerchantId());
-                postDataMap.put("nonce_str", String.valueOf(System.currentTimeMillis()));
-                postDataMap.put("sub_openid", openid);
-                postDataMap.put("sign", LeShuaUtil.getSign(postDataMap, leShuaProperties.getKey()));
+                Map<String, String> otherValueMap = Maps.newHashMap();
+                otherValueMap.put("jspay_flag","1");
+                Map<String,String> postDataMap = getPostDataMap(order.getOrderSn(), openid, otherValueMap);
 
                 StringBuilder postDataBuilder = postDataMap.keySet().stream().collect(StringBuilder::new, (x, y) -> x.append(y).append("=").append(postDataMap.get(y)).append("&"),(x, y)-> x.append(y));
                 postDataBuilder.deleteCharAt(postDataBuilder.length() - 1);
@@ -674,23 +672,73 @@ public class WxOrderService {
 
         WxPayMwebOrderResult result = null;
         try {
-            WxPayUnifiedOrderRequest orderRequest = new WxPayUnifiedOrderRequest();
-            orderRequest.setOutTradeNo(order.getOrderSn());
-            orderRequest.setTradeType("MWEB");
-            orderRequest.setBody("订单：" + order.getOrderSn());
-            // 元转成分
-            int fee = 0;
-            BigDecimal actualPrice = order.getActualPrice();
-            fee = actualPrice.multiply(new BigDecimal(100)).intValue();
-            orderRequest.setTotalFee(fee);
-            orderRequest.setSpbillCreateIp(IpUtil.getIpAddr(request));
+            if (!leShuaProperties.isEnable()) {
+                WxPayUnifiedOrderRequest orderRequest = new WxPayUnifiedOrderRequest();
+                orderRequest.setOutTradeNo(order.getOrderSn());
+                orderRequest.setTradeType("MWEB");
+                orderRequest.setBody("订单：" + order.getOrderSn());
+                // 元转成分
+                int fee = 0;
+                BigDecimal actualPrice = order.getActualPrice();
+                fee = actualPrice.multiply(new BigDecimal(100)).intValue();
+                orderRequest.setTotalFee(fee);
+                orderRequest.setSpbillCreateIp(IpUtil.getIpAddr(request));
 
-            result = wxPayService.createOrder(orderRequest);
+                result = wxPayService.createOrder(orderRequest);
+            } else {
+                LitemallUser user = userService.findById(userId);
+                String openid = user.getWeixinOpenid();
+                openid = "oFpyN0UXZdOdjtMyrGFE49vtY_AM";
+                // 参考文档 https://www.yuque.com/leshuazf/doc/zhifujiaoyi#YGAT6
+                String reqUrl = leShuaProperties.getUrl();
+                String redirectUrl = JacksonUtil.parseString(body, "redirectUrl");
+                if (redirectUrl == null) {
+                    return ResponseUtil.badArgument();
+                }
+                Map<String, String> otherValueMap = Maps.newHashMap();
+                otherValueMap.put("jump_url", redirectUrl);
+                otherValueMap.put("jspay_flag","2");
+                Map<String, String> postDataMap = getPostDataMap(order.getOrderSn(), openid, otherValueMap);
+                StringBuilder postDataBuilder = postDataMap.keySet().stream().collect(StringBuilder::new, (x, y) -> x.append(y).append("=").append(postDataMap.get(y)).append("&"),(x, y)-> x.append(y));
+                postDataBuilder.deleteCharAt(postDataBuilder.length() - 1);
+
+                String url = reqUrl + "?" + postDataBuilder.toString();
+                logger.info("Invoke leshua, url is: " + url);
+                ResponseEntity<String> responseEntity = restTemplate.postForEntity(url, null, String.class);
+                String responseBody = responseEntity.getBody();
+                logger.info("Invoke leshua, result is: " + responseBody);
+                LeShuaH5PayResponse leShuaPayResponse = LeShuaPayResult.fromXML(responseBody, LeShuaH5PayResponse.class);
+
+                if (leShuaPayResponse.getRespCode() == 0 && leShuaPayResponse.getResultCodeInt() == 0) {
+                    logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
+                    result = new WxPayMwebOrderResult(leShuaPayResponse.getJspayUrl());
+                } else {
+                    return ResponseUtil.fail();
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
 
         return ResponseUtil.ok(result);
+    }
+
+    private Map<String, String> getPostDataMap(String orderSn, String openid, Map<String, String> otherValueMap) {
+        Map<String,String> postDataMap = Maps.newHashMap();
+        postDataMap.put("service","get_tdcode");
+        postDataMap.put("pay_way", "WXZF");
+        postDataMap.put("amount", "1");
+        postDataMap.put("jspay_flag","1");
+        postDataMap.put("third_order_id", orderSn);
+        postDataMap.put("merchant_id", leShuaProperties.getMerchantId());
+        postDataMap.put("nonce_str", String.valueOf(System.currentTimeMillis()));
+        postDataMap.put("sub_openid", openid);
+        if (StringUtils.hasText(leShuaProperties.getNotifyUrl())) {
+            postDataMap.put("notify_url", leShuaProperties.getNotifyUrl());
+        }
+        postDataMap.putAll(otherValueMap);
+        postDataMap.put("sign", LeShuaUtil.getSign(postDataMap, leShuaProperties.getKey()));
+        return postDataMap;
     }
 
     /**
@@ -706,6 +754,115 @@ public class WxOrderService {
      */
     @Transactional
     public Object payNotify(HttpServletRequest request, HttpServletResponse response) {
+        String xmlResult = null;
+        try {
+            xmlResult = IOUtils.toString(request.getInputStream(), request.getCharacterEncoding());
+        } catch (IOException e) {
+            e.printStackTrace();
+            return WxPayNotifyResponse.fail(e.getMessage());
+        }
+
+        WxPayOrderNotifyResult result = null;
+        try {
+            result = wxPayService.parseOrderNotifyResult(xmlResult);
+
+            if(!WxPayConstants.ResultCode.SUCCESS.equals(result.getResultCode())){
+                logger.error(xmlResult);
+                throw new WxPayException("微信通知支付失败！");
+            }
+            if(!WxPayConstants.ResultCode.SUCCESS.equals(result.getReturnCode())){
+                logger.error(xmlResult);
+                throw new WxPayException("微信通知支付失败！");
+            }
+        } catch (WxPayException e) {
+            e.printStackTrace();
+            return WxPayNotifyResponse.fail(e.getMessage());
+        }
+
+        logger.info("处理腾讯支付平台的订单支付");
+        logger.info(result);
+
+        String orderSn = result.getOutTradeNo();
+        String payId = result.getTransactionId();
+
+        // 分转化成元
+        String totalFee = BaseWxPayResult.fenToYuan(result.getTotalFee());
+        LitemallOrder order = orderService.findBySn(orderSn);
+        if (order == null) {
+            return WxPayNotifyResponse.fail("订单不存在 sn=" + orderSn);
+        }
+
+        // 检查这个订单是否已经处理过
+        if (OrderUtil.hasPayed(order)) {
+            return WxPayNotifyResponse.success("订单已经处理成功!");
+        }
+
+        // 检查支付订单金额
+        if (!totalFee.equals(order.getActualPrice().toString())) {
+            return WxPayNotifyResponse.fail(order.getOrderSn() + " : 支付金额不符合 totalFee=" + totalFee);
+        }
+
+        order.setPayId(payId);
+        order.setPayTime(LocalDateTime.now());
+        order.setOrderStatus(OrderUtil.STATUS_PAY);
+        if (orderService.updateWithOptimisticLocker(order) == 0) {
+            return WxPayNotifyResponse.fail("更新数据已失效");
+        }
+
+        //  支付成功，有团购信息，更新团购信息
+        LitemallGroupon groupon = grouponService.queryByOrderId(order.getId());
+        if (groupon != null) {
+            LitemallGrouponRules grouponRules = grouponRulesService.findById(groupon.getRulesId());
+
+            //仅当发起者才创建分享图片
+            if (groupon.getGrouponId() == 0) {
+                String url = qCodeService.createGrouponShareImage(grouponRules.getGoodsName(), grouponRules.getPicUrl(), groupon);
+                groupon.setShareUrl(url);
+            }
+            groupon.setStatus(GrouponConstant.STATUS_ON);
+            if (grouponService.updateById(groupon) == 0) {
+                return WxPayNotifyResponse.fail("更新数据已失效");
+            }
+
+
+            List<LitemallGroupon> grouponList = grouponService.queryJoinRecord(groupon.getGrouponId());
+            if (groupon.getGrouponId() != 0 && (grouponList.size() >= grouponRules.getDiscountMember() - 1)) {
+                for (LitemallGroupon grouponActivity : grouponList) {
+                    grouponActivity.setStatus(GrouponConstant.STATUS_SUCCEED);
+                    grouponService.updateById(grouponActivity);
+                }
+
+                LitemallGroupon grouponSource = grouponService.queryById(groupon.getGrouponId());
+                grouponSource.setStatus(GrouponConstant.STATUS_SUCCEED);
+                grouponService.updateById(grouponSource);
+            }
+        }
+
+        //TODO 发送邮件和短信通知，这里采用异步发送
+        // 订单支付成功以后，会发送短信给用户，以及发送邮件给管理员
+        notifyService.notifyMail("新订单通知", order.toString());
+        // 这里微信的短信平台对参数长度有限制，所以将订单号只截取后6位
+        notifyService.notifySmsTemplateSync(order.getMobile(), NotifyType.PAY_SUCCEED, new String[]{orderSn.substring(8, 14)});
+
+        // 请依据自己的模版消息配置更改参数
+        String[] parms = new String[]{
+                order.getOrderSn(),
+                order.getOrderPrice().toString(),
+                DateTimeUtil.getDateTimeDisplayString(order.getAddTime()),
+                order.getConsignee(),
+                order.getMobile(),
+                order.getAddress()
+        };
+
+        // 取消订单超时未支付任务
+        taskService.removeTask(new OrderUnpaidTask(order.getId()));
+
+        return WxPayNotifyResponse.success("处理成功!");
+    }
+
+    @Transactional
+    public Object payNotifyLeshua(HttpServletRequest request, HttpServletResponse response) {
+        //TODO:
         String xmlResult = null;
         try {
             xmlResult = IOUtils.toString(request.getInputStream(), request.getCharacterEncoding());
