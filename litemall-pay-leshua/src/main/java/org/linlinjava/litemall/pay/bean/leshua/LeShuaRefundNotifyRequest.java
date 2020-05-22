@@ -2,17 +2,18 @@ package org.linlinjava.litemall.pay.bean.leshua;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import lombok.Data;
+import org.springframework.util.StringUtils;
 
 @XStreamAlias("leshua")
 @Data
-public class LeShuaRefundResponse extends BaseLeShuaResponse {
+public class LeShuaRefundNotifyRequest extends BaseLeShuaResponse {
     @XStreamAlias("status")
     private String status;
 
     /**
      * 实际退款金额
      */
-    @XStreamAlias("settlement_refund_amount")
+    @XStreamAlias("refund_amount")
     private String refundAmount;
 
     /**
@@ -22,12 +23,26 @@ public class LeShuaRefundResponse extends BaseLeShuaResponse {
     private String totalAmount;
 
     /**
-     * 订单余额
+     * 乐刷退款id
      */
-    @XStreamAlias("order_balance")
-    private String remainAmount;
+    @XStreamAlias("leshua_refund_id")
+    private String refundId;
+
+    /**
+     * 退款时间
+     */
+    @XStreamAlias("refund_time")
+    private String refundTime;
+
+    @XStreamAlias("failure_reason")
+    private String failureReason;
 
     public LeShuaStatus getLeShuaStatus() {
         return LeShuaStatus.getLeShuaStatus(getStatus());
+    }
+
+    @Override
+    public boolean isSuccess() {
+        return !StringUtils.hasText(this.failureReason);
     }
 }

@@ -11,6 +11,8 @@ public class LeShuaQueryResponse extends BaseLeShuaResponse {
 
     @XStreamAlias("out_transaction_id")
     private String transactionId;
+    @XStreamAlias("pay_time")
+    private String payTime;
 
     public LeShuaStatus getLeShuaStatus() {
         return LeShuaStatus.getLeShuaStatus(getStatus());

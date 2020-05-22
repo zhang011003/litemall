@@ -206,4 +206,10 @@ public class LitemallOrderService {
         order.setUpdateTime(LocalDateTime.now());
         litemallOrderMapper.updateByPrimaryKeySelective(order);
     }
+
+    public List<LitemallOrder> queryRefundUnconfirm() {
+        LitemallOrderExample example = new LitemallOrderExample();
+        example.or().andOrderStatusEqualTo(OrderUtil.STATUS_REFUND).andDeletedEqualTo(false);
+        return litemallOrderMapper.selectByExample(example);
+    }
 }

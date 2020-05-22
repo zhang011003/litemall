@@ -16,6 +16,8 @@ public class LeShuaRequest {
     private String service;
     @Param("leshua_order_id")
     private String leshuaOrderId;
+    @Param("third_order_id")
+    private String orderSn;
     @Param("pay_way")
     private String payWay;
     @Param("merchant_id")
@@ -27,4 +29,10 @@ public class LeShuaRequest {
     private String jumpUrl;
     @Param("notify_url")
     private String notifyUrl;
+    @Param("refund_amount")
+    private String refundAmount;
+    @Param("merchant_refund_id")
+    private String merchantRefundId;
+    @Param("leshua_refund_id")
+    private String leshuaRefundId;
 }

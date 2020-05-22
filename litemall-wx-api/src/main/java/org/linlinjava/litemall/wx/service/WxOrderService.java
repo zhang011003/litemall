@@ -474,9 +474,6 @@ public class WxOrderService {
         // 订单支付超期任务
         taskService.addTask(new OrderUnpaidTask(orderId));
 
-        // 订单状态主动查询
-        taskService.addTask(new OrderStatusQueryTask(orderId));
-
         Map<String, Object> data = new HashMap<>();
         data.put("orderId", orderId);
         if (grouponRulesId != null && grouponRulesId > 0) {
@@ -609,7 +606,8 @@ public class WxOrderService {
                 LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getPayUrl())
                     .setService("get_tdcode").setAmount(String.valueOf(fee))
                     .setPayWay("WXZF").setJspayFlag("2")
-                    .setNotifyUrl(leShuaProperties.getNotifyUrl());
+                    .setOrderSn(order.getOrderSn())
+                    .setNotifyUrl(leShuaProperties.getPayNotifyUrl());
                 String responseBody = leShuaService.invoke(leShuaRequest);
                 LeShuaPayResponse leShuaPayResponse = LeShuaUtil.fromXML(responseBody, LeShuaPayResponse.class);
                 LeShuaPayResponse.JSPayInfo jsPayInfo = leShuaPayResponse.getJsPayInfo();
@@ -699,13 +697,19 @@ public class WxOrderService {
                         .setService("get_tdcode").setAmount(String.valueOf(fee))
                         .setJumpUrl(redirectUrl)
                         .setPayWay("WXZF").setJspayFlag("2")
-                        .setNotifyUrl(leShuaProperties.getNotifyUrl());
+                        .setOrderSn(order.getOrderSn())
+                        .setNotifyUrl(leShuaProperties.getPayNotifyUrl());
                 String responseBody = leShuaService.invoke(leShuaRequest);
                 LeShuaPayResponse leShuaPayResponse = LeShuaUtil.fromXML(responseBody, LeShuaPayResponse.class);
 
                 if (leShuaPayResponse.isSuccess()) {
                     logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
                     order.setPayId(leShuaPayResponse.getLeshuaOrderId());
+                    order.setPayType(OrderUtil.PayType.LeShua.getPayType());
+
+                    // 订单支付状态主动查询
+                    taskService.addTask(new OrderStatusQueryTask(orderId));
+
                     result = new WxPayMwebOrderResult(leShuaPayResponse.getJspayUrl());
                 } else {
                     return ResponseUtil.fail();

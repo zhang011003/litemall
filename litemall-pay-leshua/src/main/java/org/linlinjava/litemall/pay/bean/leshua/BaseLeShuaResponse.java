@@ -16,6 +16,8 @@ public abstract class BaseLeShuaResponse {
 
     @XStreamAlias("error_code")
     private int errorCode;
+    @XStreamAlias("error_msg")
+    private String errorMsg;
 
     @XStreamAlias("merchant_id")
     private String merchantId;

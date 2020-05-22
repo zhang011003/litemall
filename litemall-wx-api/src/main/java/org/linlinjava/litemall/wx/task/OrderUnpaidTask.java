@@ -64,9 +64,6 @@ public class OrderUnpaidTask extends Task {
                 if (leShuaService == null) {
                     break;
                 }
-                Map<String, String> otherValueMap = Maps.newHashMap();
-                otherValueMap.put("service", "close_order");
-
                 LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getCloseUrl())
                         .setService("close_order").setLeshuaOrderId(order.getPayId());
                 String response = leShuaService.invoke(leShuaRequest);

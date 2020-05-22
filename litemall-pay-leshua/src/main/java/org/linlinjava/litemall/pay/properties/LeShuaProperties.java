@@ -16,11 +16,15 @@ public class LeShuaProperties {
 
     private String key;
 
-    private String notifyUrl;
+    private String payNotifyUrl;
 
     private String queryUrl = "cgi-bin/lepos_pay_gateway.cgi";
 
     private String refundUrl = "cgi-bin/lepos_pay_gateway.cgi";
+
+    private String refundQueryUrl = "cgi-bin/lepos_pay_gateway.cgi";
+
+    private String refundNotifyUrl;
 
     private String closeUrl = "cgi-bin/lepos_pay_gateway.cgi";
 
@@ -34,6 +38,10 @@ public class LeShuaProperties {
 
     public String getRefundUrl() {
         return getUrl() + refundUrl;
+    }
+
+    public String getRefundQueryUrl() {
+        return getUrl() + refundQueryUrl;
     }
 
     public String getCloseUrl() {

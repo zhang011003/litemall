@@ -1,9 +1,9 @@
 package org.linlinjava.litemall.pay.service;
 
 import com.google.common.collect.Maps;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.linlinjava.litemall.pay.bean.Param;
+import org.linlinjava.litemall.pay.bean.leshua.BaseLeShuaResponse;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
 import org.linlinjava.litemall.pay.properties.LeShuaProperties;
 import org.linlinjava.litemall.pay.util.LeShuaUtil;
@@ -23,22 +23,42 @@ public class LeShuaService {
     @Autowired
     private RestTemplate restTemplate;
 
-    @SneakyThrows
     private Map<String, String> getPostDataMap(LeShuaRequest request) {
         Map<String,String> postDataMap = Maps.newHashMap();
         Arrays.stream(request.getClass().getDeclaredFields())
-            .filter(f -> StringUtils.hasText((String) f.get(request)))
+            .filter(f -> {
+                boolean accessible = f.isAccessible();
+                try {
+                    f.setAccessible(true);
+                    return StringUtils.hasText((String) f.get(request));
+                } catch (IllegalAccessException e) {
+                    return false;
+                } finally {
+                    f.setAccessible(accessible);
+                }
+            })
             .filter(f -> f.getAnnotation(Param.class) == null || !f.getAnnotation(Param.class).ignore())
             .forEach(f -> {
+                boolean accessible = f.isAccessible();
+                f.setAccessible(true);
                 Param param = f.getAnnotation(Param.class);
                 if (param == null) {
-                    postDataMap.put(f.getName(), (String) f.get(request));
+                    try {
+                        postDataMap.put(f.getName(), (String) f.get(request));
+                    } catch (IllegalAccessException e) {
+                    }
                 } else {
-                    postDataMap.put(param.value(), (String) f.get(request));
+                    try {
+                        postDataMap.put(param.value(), (String) f.get(request));
+                    } catch (IllegalAccessException e) {
+                    }
                 }
+                f.setAccessible(accessible);
+
             });
         // TODO: 测试时设置金额为1分钱
         postDataMap.put("amount", "1");
+        postDataMap.put("refund_amount", "1");
         postDataMap.put("merchant_id", leShuaProperties.getMerchantId());
         postDataMap.put("nonce_str", String.valueOf(System.currentTimeMillis()));
         postDataMap.put("sign", LeShuaUtil.getSign(postDataMap, leShuaProperties.getKey()));
@@ -58,4 +78,8 @@ public class LeShuaService {
         return responseBody;
     }
 
+    public <T extends BaseLeShuaResponse> T invoke(LeShuaRequest request, Class<T> resultClazz) {
+        String result = this.invoke(request);
+        return LeShuaUtil.fromXML(result, resultClazz);
+    }
 }

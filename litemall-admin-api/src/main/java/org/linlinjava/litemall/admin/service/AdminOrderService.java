@@ -4,10 +4,14 @@ import com.github.binarywang.wxpay.bean.request.WxPayRefundRequest;
 import com.github.binarywang.wxpay.bean.result.WxPayRefundResult;
 import com.github.binarywang.wxpay.exception.WxPayException;
 import com.github.binarywang.wxpay.service.WxPayService;
+import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.linlinjava.litemall.admin.task.OrderRefundUnconfirmQueryTask;
 import org.linlinjava.litemall.core.notify.NotifyService;
 import org.linlinjava.litemall.core.notify.NotifyType;
+import org.linlinjava.litemall.core.task.TaskService;
 import org.linlinjava.litemall.core.util.JacksonUtil;
 import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.db.domain.LitemallComment;
@@ -16,6 +20,12 @@ import org.linlinjava.litemall.db.domain.LitemallOrderGoods;
 import org.linlinjava.litemall.db.domain.UserVo;
 import org.linlinjava.litemall.db.service.*;
 import org.linlinjava.litemall.db.util.OrderUtil;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaRefundNotifyRequest;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaRefundResponse;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
+import org.linlinjava.litemall.pay.properties.LeShuaProperties;
+import org.linlinjava.litemall.pay.service.LeShuaService;
+import org.linlinjava.litemall.pay.util.LeShuaUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,7 +40,7 @@ import java.util.Map;
 import static org.linlinjava.litemall.admin.util.AdminResponseCode.*;
 
 @Service
-
+@Slf4j
 public class AdminOrderService {
     private final Log logger = LogFactory.getLog(AdminOrderService.class);
 
@@ -50,6 +60,12 @@ public class AdminOrderService {
     private NotifyService notifyService;
     @Autowired
     private LogHelper logHelper;
+    @Autowired
+    private TaskService taskService;
+    @Autowired(required = false)
+    private LeShuaService leShuaService;
+    @Autowired(required = false)
+    private LeShuaProperties leShuaProperties;
 
     public Object list(Integer userId, String orderSn, LocalDateTime start, LocalDateTime end, List<Short> orderStatusArray,
                        Integer page, Integer limit, String sort, String order) {
@@ -111,22 +127,57 @@ public class AdminOrderService {
             return ResponseUtil.fail(ORDER_CONFIRM_NOT_ALLOWED, "订单不能确认收货");
         }
 
-        // 微信退款
-        WxPayRefundRequest wxPayRefundRequest = new WxPayRefundRequest();
-        wxPayRefundRequest.setOutTradeNo(order.getOrderSn());
-        wxPayRefundRequest.setOutRefundNo("refund_" + order.getOrderSn());
         // 元转成分
         Integer totalFee = order.getActualPrice().multiply(new BigDecimal(100)).intValue();
-        wxPayRefundRequest.setTotalFee(totalFee);
-        wxPayRefundRequest.setRefundFee(totalFee);
+        WxPayRefundResult wxPayRefundResult = null;
+        OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
 
-        WxPayRefundResult wxPayRefundResult;
-        try {
-            wxPayRefundResult = wxPayService.refund(wxPayRefundRequest);
-        } catch (WxPayException e) {
-            logger.error(e.getMessage(), e);
-            return ResponseUtil.fail(ORDER_REFUND_FAILED, "订单退款失败");
+        boolean refundFinish = false;
+        switch (payType) {
+            case WeiXin:
+                // 微信退款
+                WxPayRefundRequest wxPayRefundRequest = new WxPayRefundRequest();
+                wxPayRefundRequest.setOutTradeNo(order.getOrderSn());
+                wxPayRefundRequest.setOutRefundNo("refund_" + order.getOrderSn());
+                wxPayRefundRequest.setTotalFee(totalFee);
+                wxPayRefundRequest.setRefundFee(totalFee);
+                try {
+                    wxPayRefundResult = wxPayService.refund(wxPayRefundRequest);
+                } catch (WxPayException e) {
+                    logger.error(e.getMessage(), e);
+                    return ResponseUtil.fail(ORDER_REFUND_FAILED, "订单退款失败");
+                }
+                refundFinish = true;
+                break;
+            case LeShua:
+                if (leShuaService == null) {
+                    return ResponseUtil.fail(ORDER_REFUND_FAILED, "不支持乐刷退款");
+                }
+                LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getRefundUrl())
+                        .setService("unified_refund").setLeshuaOrderId(order.getPayId())
+                        .setMerchantRefundId(order.getOrderSn())
+                        .setRefundAmount(String.valueOf(totalFee))
+                        .setNotifyUrl(leShuaProperties.getRefundNotifyUrl());
+                LeShuaRefundResponse leShuaRefundResponse = leShuaService.invoke(leShuaRequest, LeShuaRefundResponse.class);
+                wxPayRefundResult = new WxPayRefundResult();
+                if (leShuaRefundResponse.isSuccess()) {
+                    log.info("Order id: {}, leshua refund status:{}, refund amount:{}",
+                            leShuaRefundResponse.getThirdOrderId(),
+                            leShuaRefundResponse.getStatus(),
+                            leShuaRefundResponse.getRefundAmount());
+                    wxPayRefundResult.setReturnCode("SUCCESS");
+                    wxPayRefundResult.setResultCode("SUCCESS");
+                } else {
+                    wxPayRefundResult.setReturnCode("Failed");
+                    wxPayRefundResult.setReturnMsg(leShuaRefundResponse.getErrorMsg());
+                }
+                refundFinish = false;
+                break;
+            default:
+                break;
         }
+
+
         if (!wxPayRefundResult.getReturnCode().equals("SUCCESS")) {
             logger.warn("refund fail: " + wxPayRefundResult.getReturnMsg());
             return ResponseUtil.fail(ORDER_REFUND_FAILED, "订单退款失败");
@@ -136,14 +187,48 @@ public class AdminOrderService {
             return ResponseUtil.fail(ORDER_REFUND_FAILED, "订单退款失败");
         }
 
+        order.setRefundContent(wxPayRefundResult.getRefundId());
+        if (orderService.updateWithOptimisticLocker(order) == 0) {
+            throw new RuntimeException("更新数据已失效");
+        }
+
+        // TODO：微信退款没有结果通知的调用？不需要查询是否退款成功？
+        if (refundFinish) {
+            order = orderService.findById(orderId);
+            refundPostHandler(orderId, order, order.getActualPrice());
+        } else {
+            taskService.addTask(new OrderRefundUnconfirmQueryTask(orderId));
+        }
+        return ResponseUtil.ok();
+    }
+
+    /**
+     * 退款成功后的操作
+     * @param orderId
+     * @param order
+     * @return
+     */
+    public void refundPostHandler(Integer orderId, LitemallOrder order, BigDecimal refundAmont) {
         LocalDateTime now = LocalDateTime.now();
         // 设置订单取消状态
         order.setOrderStatus(OrderUtil.STATUS_REFUND_CONFIRM);
         order.setEndTime(now);
         // 记录订单退款相关信息
-        order.setRefundAmount(order.getActualPrice());
-        order.setRefundType("微信退款接口");
-        order.setRefundContent(wxPayRefundResult.getRefundId());
+        order.setRefundAmount(refundAmont);
+
+        OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
+        String refundType = "";
+        switch (payType) {
+            case WeiXin:
+                refundType = "微信退款接口";
+                break;
+            case LeShua:
+                refundType = "乐刷退款接口";
+                break;
+            default:
+                break;
+        }
+        order.setRefundType(refundType);
         order.setRefundTime(now);
         if (orderService.updateWithOptimisticLocker(order) == 0) {
             throw new RuntimeException("更新数据已失效");
@@ -166,7 +251,7 @@ public class AdminOrderService {
                 new String[]{order.getOrderSn().substring(8, 14)});
 
         logHelper.logOrderSucceed("退款", "订单编号 " + order.getOrderSn());
-        return ResponseUtil.ok();
+
     }
 
     /**
@@ -278,4 +363,16 @@ public class AdminOrderService {
         return ResponseUtil.ok();
     }
 
+    public String refundNotifyLeShua(String body) {
+        LeShuaRefundNotifyRequest refundNotifyRequest = LeShuaUtil.fromXML(body, LeShuaRefundNotifyRequest.class);
+        if (refundNotifyRequest.isSuccess()) {
+            LitemallOrder litemallOrder = orderService.findBySn(refundNotifyRequest.getThirdOrderId());
+            refundPostHandler(litemallOrder.getId(), litemallOrder, new BigDecimal(refundNotifyRequest.getRefundAmount()));
+        } else {
+            log.warn("Refund failed，reason:{}, order sn:{}",
+                    refundNotifyRequest.getFailureReason(),
+                    refundNotifyRequest.getThirdOrderId());
+        }
+        return "000000";
+    }
 }

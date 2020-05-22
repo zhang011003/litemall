@@ -15,6 +15,7 @@ import org.linlinjava.litemall.pay.service.LeShuaService;
 import org.linlinjava.litemall.pay.util.LeShuaUtil;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -28,7 +29,7 @@ public class OrderStatusQueryTask extends Task {
     }
 
     public OrderStatusQueryTask(Integer orderId){
-        super("OrderUnpaidQueryTask-" + orderId, TimeUnit.SECONDS.toMillis(2));
+        super("OrderUnpaidQueryTask-" + orderId, TimeUnit.SECONDS.toMillis(5));
         this.orderId = orderId;
     }
 
@@ -52,7 +53,7 @@ public class OrderStatusQueryTask extends Task {
         boolean querySuccess = false;
 
         Short status = order.getOrderStatus();
-
+        LocalDateTime localDateTime = null;
         OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
         switch (payType) {
             case LeShua:
@@ -72,6 +73,7 @@ public class OrderStatusQueryTask extends Task {
                     if (leShuaStatus != LeShuaStatus.PAYING) {
                         needUpdateStatus = true;
                         status = leShuaStatus.getOrderStatus();
+                        localDateTime = LocalDateTime.parse(leShuaQueryResponse.getPayTime(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
                     }
                 }
                 break;
@@ -85,7 +87,7 @@ public class OrderStatusQueryTask extends Task {
         if (needUpdateStatus) {
             // 更新订单状态
             order.setOrderStatus(status);
-            order.setEndTime(LocalDateTime.now());
+            order.setPayTime(localDateTime);
             if (orderService.updateWithOptimisticLocker(order) == 0) {
 //            throw new RuntimeException("更新数据已失效");
                 log.warn("订单数据状态更新失败， orderId={}", order.getId());

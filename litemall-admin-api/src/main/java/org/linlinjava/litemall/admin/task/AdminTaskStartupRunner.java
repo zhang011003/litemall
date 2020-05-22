@@ -1,9 +1,13 @@
 package org.linlinjava.litemall.admin.task;
 
+import com.google.common.collect.Lists;
 import org.linlinjava.litemall.core.task.TaskService;
 import org.linlinjava.litemall.db.domain.LitemallGrouponRules;
+import org.linlinjava.litemall.db.domain.LitemallOrder;
 import org.linlinjava.litemall.db.service.LitemallGrouponRulesService;
+import org.linlinjava.litemall.db.service.LitemallOrderService;
 import org.linlinjava.litemall.db.util.GrouponConstant;
+import org.linlinjava.litemall.db.util.OrderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -21,6 +25,9 @@ public class AdminTaskStartupRunner implements ApplicationRunner {
     @Autowired
     private TaskService taskService;
 
+    @Autowired
+    private LitemallOrderService orderService;
+
     @Override
     public void run(ApplicationArguments args) throws Exception {
         List<LitemallGrouponRules> grouponRulesList = rulesService.queryByStatus(GrouponConstant.RULE_STATUS_ON);
@@ -37,5 +44,10 @@ public class AdminTaskStartupRunner implements ApplicationRunner {
                 taskService.addTask(new GrouponRuleExpiredTask(grouponRules.getId(), delay));
             }
         }
+
+        List<LitemallOrder> litemallOrders = orderService.queryRefundUnconfirm();
+        litemallOrders.forEach(order -> {
+            taskService.addTask(new OrderRefundUnconfirmQueryTask(order.getId()));
+        });
     }
 }

@@ -131,4 +131,9 @@ public class AdminOrderController {
     public Object reply(@RequestBody String body) {
         return adminOrderService.reply(body);
     }
+
+    @PostMapping("refund-notify-leshua")
+    public String refundNotifyLeShua(@RequestBody String body) {
+        return adminOrderService.refundNotifyLeShua(body);
+    }
 }
