@@ -14,6 +14,7 @@ import org.linlinjava.litemall.db.service.LitemallOrderGoodsService;
 import org.linlinjava.litemall.db.service.LitemallOrderService;
 import org.linlinjava.litemall.db.util.OrderUtil;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaCloseResponse;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
 import org.linlinjava.litemall.pay.properties.LeShuaProperties;
 import org.linlinjava.litemall.pay.service.LeShuaService;
 import org.linlinjava.litemall.pay.util.LeShuaUtil;
@@ -56,7 +57,7 @@ public class OrderUnpaidTask extends Task {
             return;
         }
 
-        //TODO: 其它支付是否需要关闭订单
+        //TODO: 其它支付是否需要关闭订单?
         OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
         switch (payType) {
             case LeShua:
@@ -65,7 +66,10 @@ public class OrderUnpaidTask extends Task {
                 }
                 Map<String, String> otherValueMap = Maps.newHashMap();
                 otherValueMap.put("service", "close_order");
-                String response = leShuaService.invoke(leShuaProperties.getCloseUrl(), order.getOrderSn(), "", otherValueMap);
+
+                LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getCloseUrl())
+                        .setService("close_order").setLeshuaOrderId(order.getPayId());
+                String response = leShuaService.invoke(leShuaRequest);
                 LeShuaCloseResponse leShuaCloseResponse = LeShuaUtil.fromXML(response, LeShuaCloseResponse.class);
                 log.info("Order {}, leshua status: {}", order.getOrderSn(), leShuaCloseResponse.getLeShuaStatus().getStatus());
             default:

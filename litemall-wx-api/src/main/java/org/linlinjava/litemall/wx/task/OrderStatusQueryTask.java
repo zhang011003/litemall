@@ -8,6 +8,7 @@ import org.linlinjava.litemall.db.domain.LitemallOrder;
 import org.linlinjava.litemall.db.service.LitemallOrderService;
 import org.linlinjava.litemall.db.util.OrderUtil;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaQueryResponse;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaStatus;
 import org.linlinjava.litemall.pay.properties.LeShuaProperties;
 import org.linlinjava.litemall.pay.service.LeShuaService;
@@ -51,7 +52,6 @@ public class OrderStatusQueryTask extends Task {
         boolean querySuccess = false;
 
         Short status = order.getOrderStatus();
-        String payId = order.getPayId();
 
         OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
         switch (payType) {
@@ -60,10 +60,9 @@ public class OrderStatusQueryTask extends Task {
                     // 支付类型对应的service没有找到，该条记录的订单查询不处理
                     return;
                 }
-                Map<String, String> otherValueMap = Maps.newHashMap();
-                otherValueMap.put("service", "query_status");
-
-                String result = leShuaService.invoke(leShuaProperties.getQueryUrl(), order.getOrderSn(), "", otherValueMap);
+                LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getQueryUrl())
+                        .setService("query_status").setLeshuaOrderId(order.getPayId());
+                String result = leShuaService.invoke(leShuaRequest);
                 LeShuaQueryResponse leShuaQueryResponse = LeShuaUtil.fromXML(result, LeShuaQueryResponse.class);
                 if (leShuaQueryResponse.isSuccess()) {
                     querySuccess = true;
@@ -73,7 +72,6 @@ public class OrderStatusQueryTask extends Task {
                     if (leShuaStatus != LeShuaStatus.PAYING) {
                         needUpdateStatus = true;
                         status = leShuaStatus.getOrderStatus();
-                        payId = leShuaQueryResponse.getTransactionId();
                     }
                 }
                 break;
@@ -87,7 +85,6 @@ public class OrderStatusQueryTask extends Task {
         if (needUpdateStatus) {
             // 更新订单状态
             order.setOrderStatus(status);
-            order.setPayId(payId);
             order.setEndTime(LocalDateTime.now());
             if (orderService.updateWithOptimisticLocker(order) == 0) {
 //            throw new RuntimeException("更新数据已失效");

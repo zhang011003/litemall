@@ -28,6 +28,7 @@ import org.linlinjava.litemall.db.util.GrouponConstant;
 import org.linlinjava.litemall.db.util.OrderHandleOption;
 import org.linlinjava.litemall.db.util.OrderUtil;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaPayResponse;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
 import org.linlinjava.litemall.pay.properties.LeShuaProperties;
 import org.linlinjava.litemall.pay.service.LeShuaService;
 import org.linlinjava.litemall.pay.util.LeShuaUtil;
@@ -586,6 +587,11 @@ public class WxOrderService {
         if (openid == null) {
             return ResponseUtil.fail(AUTH_OPENID_UNACCESS, "订单不能支付");
         }
+        // 元转成分
+        int fee = 0;
+        BigDecimal actualPrice = order.getActualPrice();
+        fee = actualPrice.multiply(new BigDecimal(100)).intValue();
+
         WxPayMpOrderResult result = null;
         try {
             if (leShuaProperties == null) {
@@ -593,20 +599,18 @@ public class WxOrderService {
                 orderRequest.setOutTradeNo(order.getOrderSn());
                 orderRequest.setOpenid(openid);
                 orderRequest.setBody("订单：" + order.getOrderSn());
-                // 元转成分
-                int fee = 0;
-                BigDecimal actualPrice = order.getActualPrice();
-                fee = actualPrice.multiply(new BigDecimal(100)).intValue();
+
                 orderRequest.setTotalFee(fee);
                 orderRequest.setSpbillCreateIp(IpUtil.getIpAddr(request));
                 result = wxPayService.createOrder(orderRequest);
             } else {
                 // 参考文档 https://www.yuque.com/leshuazf/doc/zhifujiaoyi#YGAT6
                 String reqUrl = leShuaProperties.getUrl();
-                Map<String, String> otherValueMap = Maps.newHashMap();
-                otherValueMap.put("jspay_flag","1");
-
-                String responseBody = leShuaService.invoke(reqUrl, order.getOrderSn(), openid, otherValueMap);
+                LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getPayUrl())
+                    .setService("get_tdcode").setAmount(String.valueOf(fee))
+                    .setPayWay("WXZF").setJspayFlag("2")
+                    .setNotifyUrl(leShuaProperties.getNotifyUrl());
+                String responseBody = leShuaService.invoke(leShuaRequest);
                 LeShuaPayResponse leShuaPayResponse = LeShuaUtil.fromXML(responseBody, LeShuaPayResponse.class);
                 LeShuaPayResponse.JSPayInfo jsPayInfo = leShuaPayResponse.getJsPayInfo();
                 logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
@@ -661,6 +665,10 @@ public class WxOrderService {
             return ResponseUtil.fail(ORDER_INVALID_OPERATION, "订单不能支付");
         }
 
+        // 元转成分
+        int fee = 0;
+        BigDecimal actualPrice = order.getActualPrice();
+        fee = actualPrice.multiply(new BigDecimal(100)).intValue();
         WxPayMwebOrderResult result = null;
         try {
             if (leShuaProperties == null) {
@@ -670,10 +678,7 @@ public class WxOrderService {
                 orderRequest.setOutTradeNo(order.getOrderSn());
                 orderRequest.setTradeType("MWEB");
                 orderRequest.setBody("订单：" + order.getOrderSn());
-                // 元转成分
-                int fee = 0;
-                BigDecimal actualPrice = order.getActualPrice();
-                fee = actualPrice.multiply(new BigDecimal(100)).intValue();
+
                 orderRequest.setTotalFee(fee);
                 orderRequest.setSpbillCreateIp(IpUtil.getIpAddr(request));
 
@@ -690,15 +695,17 @@ public class WxOrderService {
                 if (redirectUrl == null) {
                     return ResponseUtil.badArgument();
                 }
-                Map<String, String> otherValueMap = Maps.newHashMap();
-                otherValueMap.put("jump_url", redirectUrl);
-                otherValueMap.put("jspay_flag","2");
-
-                String responseBody = leShuaService.invoke(reqUrl, order.getOrderSn(), openid, otherValueMap);
+                LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getPayUrl())
+                        .setService("get_tdcode").setAmount(String.valueOf(fee))
+                        .setJumpUrl(redirectUrl)
+                        .setPayWay("WXZF").setJspayFlag("2")
+                        .setNotifyUrl(leShuaProperties.getNotifyUrl());
+                String responseBody = leShuaService.invoke(leShuaRequest);
                 LeShuaPayResponse leShuaPayResponse = LeShuaUtil.fromXML(responseBody, LeShuaPayResponse.class);
 
                 if (leShuaPayResponse.isSuccess()) {
                     logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
+                    order.setPayId(leShuaPayResponse.getLeshuaOrderId());
                     result = new WxPayMwebOrderResult(leShuaPayResponse.getJspayUrl());
                 } else {
                     return ResponseUtil.fail();

@@ -1,18 +1,20 @@
-package org.linlinjava.litemall.wx.service;
+package org.linlinjava.litemall.pay.service;
 
 import com.google.common.collect.Maps;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.linlinjava.litemall.core.config.LeShuaProperties;
-import org.linlinjava.litemall.core.util.LeShuaUtil;
+import org.linlinjava.litemall.pay.bean.Param;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
+import org.linlinjava.litemall.pay.properties.LeShuaProperties;
+import org.linlinjava.litemall.pay.util.LeShuaUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Arrays;
 import java.util.Map;
 
-@Service
 @Slf4j
 public class LeShuaService {
     @Autowired
@@ -21,36 +23,39 @@ public class LeShuaService {
     @Autowired
     private RestTemplate restTemplate;
 
-    private Map<String, String> getPostDataMap(String orderSn, String openid, Map<String, String> otherValueMap) {
+    @SneakyThrows
+    private Map<String, String> getPostDataMap(LeShuaRequest request) {
         Map<String,String> postDataMap = Maps.newHashMap();
-        postDataMap.put("service","get_tdcode");
-        postDataMap.put("pay_way", "WXZF");
+        Arrays.stream(request.getClass().getDeclaredFields())
+            .filter(f -> StringUtils.hasText((String) f.get(request)))
+            .filter(f -> f.getAnnotation(Param.class) == null || !f.getAnnotation(Param.class).ignore())
+            .forEach(f -> {
+                Param param = f.getAnnotation(Param.class);
+                if (param == null) {
+                    postDataMap.put(f.getName(), (String) f.get(request));
+                } else {
+                    postDataMap.put(param.value(), (String) f.get(request));
+                }
+            });
+        // TODO: 测试时设置金额为1分钱
         postDataMap.put("amount", "1");
-        postDataMap.put("jspay_flag","1");
-        postDataMap.put("third_order_id", orderSn);
         postDataMap.put("merchant_id", leShuaProperties.getMerchantId());
         postDataMap.put("nonce_str", String.valueOf(System.currentTimeMillis()));
-        if (StringUtils.hasText(openid)) {
-            postDataMap.put("sub_openid", openid);
-        }
-        if (StringUtils.hasText(leShuaProperties.getNotifyUrl())) {
-            postDataMap.put("notify_url", leShuaProperties.getNotifyUrl());
-        }
-        postDataMap.putAll(otherValueMap);
         postDataMap.put("sign", LeShuaUtil.getSign(postDataMap, leShuaProperties.getKey()));
         return postDataMap;
     }
 
-    public String invoke(String reqUrl, String orderSn, String openid, Map<String, String> otherValueMap) {
-        Map<String, String> postDataMap = getPostDataMap(orderSn, openid, otherValueMap);
+    public String invoke(LeShuaRequest request) {
+        Map<String, String> postDataMap = getPostDataMap(request);
         StringBuilder postDataBuilder = postDataMap.keySet().stream().collect(StringBuilder::new, (x, y) -> x.append(y).append("=").append(postDataMap.get(y)).append("&"),(x, y)-> x.append(y));
         postDataBuilder.deleteCharAt(postDataBuilder.length() - 1);
 
-        String url = reqUrl + "?" + postDataBuilder.toString();
+        String url = request.getRequestUrl() + "?" + postDataBuilder.toString();
         log.info("Invoke leshua, url is: " + url);
         ResponseEntity<String> responseEntity = restTemplate.postForEntity(url, null, String.class);
         String responseBody = responseEntity.getBody();
         log.info("Invoke leshua, result is: " + responseBody);
         return responseBody;
     }
+
 }

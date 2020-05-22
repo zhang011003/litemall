@@ -1,6 +1,5 @@
-package org.linlinjava.litemall.wx.leshua;
+package org.linlinjava.litemall.pay.bean.leshua;
 
-import com.github.binarywang.wxpay.bean.result.BaseWxPayResult;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -9,7 +8,7 @@ import lombok.Data;
 
 @XStreamAlias("leshua")
 @Data
-public class LeShuaPayResponse extends BaseLeShuaResult {
+public class LeShuaPayResponse extends BaseLeShuaResponse {
 
     @XStreamAlias("jspay_info")
     private String jspayInfo;

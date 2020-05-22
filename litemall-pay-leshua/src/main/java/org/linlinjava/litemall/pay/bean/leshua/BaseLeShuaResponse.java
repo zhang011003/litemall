@@ -1,10 +1,10 @@
-package org.linlinjava.litemall.wx.leshua;
+package org.linlinjava.litemall.pay.bean.leshua;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import lombok.Data;
 
 @Data
-public abstract class BaseLeShuaResult {
+public abstract class BaseLeShuaResponse {
     @XStreamAlias("result_code")
     private int resultCode;
 
