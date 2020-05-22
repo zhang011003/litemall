@@ -1,27 +1,19 @@
 package org.linlinjava.litemall.wx.task;
 
 import com.google.common.collect.Maps;
-import com.qcloud.cos.transfer.PauseStatus;
-import lombok.extern.java.Log;
 import lombok.extern.slf4j.Slf4j;
-import org.linlinjava.litemall.core.config.LeShuaProperties;
-import org.linlinjava.litemall.core.system.SystemConfig;
 import org.linlinjava.litemall.core.task.Task;
 import org.linlinjava.litemall.core.util.BeanUtil;
 import org.linlinjava.litemall.db.domain.LitemallOrder;
-import org.linlinjava.litemall.db.domain.LitemallOrderGoods;
-import org.linlinjava.litemall.db.service.LitemallGoodsProductService;
-import org.linlinjava.litemall.db.service.LitemallOrderGoodsService;
 import org.linlinjava.litemall.db.service.LitemallOrderService;
 import org.linlinjava.litemall.db.util.OrderUtil;
-import org.linlinjava.litemall.wx.leshua.LeShuaPayResult;
-import org.linlinjava.litemall.wx.leshua.LeShuaQueryResponse;
-import org.linlinjava.litemall.wx.leshua.LeShuaStatus;
-import org.linlinjava.litemall.wx.service.LeShuaService;
-import org.springframework.web.client.RestTemplate;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaQueryResponse;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaStatus;
+import org.linlinjava.litemall.pay.properties.LeShuaProperties;
+import org.linlinjava.litemall.pay.service.LeShuaService;
+import org.linlinjava.litemall.pay.util.LeShuaUtil;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -64,11 +56,15 @@ public class OrderStatusQueryTask extends Task {
         OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
         switch (payType) {
             case LeShua:
+                if (leShuaService == null) {
+                    // 支付类型对应的service没有找到，该条记录的订单查询不处理
+                    return;
+                }
                 Map<String, String> otherValueMap = Maps.newHashMap();
                 otherValueMap.put("service", "query_status");
 
                 String result = leShuaService.invoke(leShuaProperties.getQueryUrl(), order.getOrderSn(), "", otherValueMap);
-                LeShuaQueryResponse leShuaQueryResponse = LeShuaPayResult.fromXML(result, LeShuaQueryResponse.class);
+                LeShuaQueryResponse leShuaQueryResponse = LeShuaUtil.fromXML(result, LeShuaQueryResponse.class);
                 if (leShuaQueryResponse.isSuccess()) {
                     querySuccess = true;
 

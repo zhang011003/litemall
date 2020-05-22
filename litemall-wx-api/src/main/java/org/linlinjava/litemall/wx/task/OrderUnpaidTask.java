@@ -1,5 +1,7 @@
 package org.linlinjava.litemall.wx.task;
 
+import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.linlinjava.litemall.core.system.SystemConfig;
@@ -11,10 +13,16 @@ import org.linlinjava.litemall.db.service.LitemallGoodsProductService;
 import org.linlinjava.litemall.db.service.LitemallOrderGoodsService;
 import org.linlinjava.litemall.db.service.LitemallOrderService;
 import org.linlinjava.litemall.db.util.OrderUtil;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaCloseResponse;
+import org.linlinjava.litemall.pay.properties.LeShuaProperties;
+import org.linlinjava.litemall.pay.service.LeShuaService;
+import org.linlinjava.litemall.pay.util.LeShuaUtil;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 public class OrderUnpaidTask extends Task {
     private final Log logger = LogFactory.getLog(OrderUnpaidTask.class);
     private int orderId = -1;
@@ -37,6 +45,9 @@ public class OrderUnpaidTask extends Task {
         LitemallOrderGoodsService orderGoodsService = BeanUtil.getBean(LitemallOrderGoodsService.class);
         LitemallGoodsProductService productService = BeanUtil.getBean(LitemallGoodsProductService.class);
 
+        LeShuaService leShuaService = BeanUtil.getBean(LeShuaService.class);
+        LeShuaProperties leShuaProperties = BeanUtil.getBean(LeShuaProperties.class);
+
         LitemallOrder order = orderService.findById(this.orderId);
         if(order == null){
             return;
@@ -45,6 +56,22 @@ public class OrderUnpaidTask extends Task {
             return;
         }
 
+        //TODO: 其它支付是否需要关闭订单
+        OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
+        switch (payType) {
+            case LeShua:
+                if (leShuaService == null) {
+                    break;
+                }
+                Map<String, String> otherValueMap = Maps.newHashMap();
+                otherValueMap.put("service", "close_order");
+                String response = leShuaService.invoke(leShuaProperties.getCloseUrl(), order.getOrderSn(), "", otherValueMap);
+                LeShuaCloseResponse leShuaCloseResponse = LeShuaUtil.fromXML(response, LeShuaCloseResponse.class);
+                log.info("Order {}, leshua status: {}", order.getOrderSn(), leShuaCloseResponse.getLeShuaStatus().getStatus());
+            default:
+                break;
+
+        }
         // 设置订单已取消状态
         order.setOrderStatus(OrderUtil.STATUS_AUTO_CANCEL);
         order.setEndTime(LocalDateTime.now());

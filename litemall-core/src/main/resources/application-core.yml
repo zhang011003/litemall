@@ -1,14 +1,9 @@
 litemall:
-  # 测试使用乐刷，正式需要换成微信支付
   leshua:
-    enable: true
-    url-base: https://paygate.leshuazf.com/
-    url: cgi-bin/lepos_pay_gateway.cgi
+    url: https://paygate.leshuazf.com/
     merchant_id: 4014116132
     key: EE085A0ABA9D22493B7971B2E1AEB4DF
     notify-url: http://192.168.0.7:6255/wx/order/pay-notify-leshua
-    query-url: cgi-bin/lepos_pay_gateway.cgi
-    refund-url: cgi-bin/lepos_pay_gateway.cgi
 
   # 开发者应该设置成自己的wx相关信息
   wx:

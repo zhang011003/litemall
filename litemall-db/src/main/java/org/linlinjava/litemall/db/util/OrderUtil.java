@@ -21,8 +21,11 @@ import java.util.List;
  * 当402系统自动确认收货以后，此时用户可以删除、去评价、或者再次购买
  */
 public class OrderUtil {
+    // TODO: 增加支付方式需要在该枚举类中增加对应的值
     public enum PayType {
-        WeiXin("wx"), ZhiFuBao("zfb"), LeShua("ls");
+        WeiXin("wx"), ZhiFuBao("zfb"), LeShua("ls"),
+
+        UNKNOWN("unknown");
         private String payType;
 
         PayType(String payType) {
@@ -37,9 +40,10 @@ public class OrderUtil {
             return Arrays.stream(PayType.values())
                     .filter(p -> p.getPayType().equals(payType))
                     .findFirst()
-                    .orElseThrow(IllegalArgumentException::new);
+                    .orElse(UNKNOWN);
         }
     }
+
     public static final Short STATUS_CREATE = 101;
     public static final Short STATUS_PAY = 201;
     public static final Short STATUS_SHIP = 301;

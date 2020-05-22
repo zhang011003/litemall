@@ -1,4 +1,4 @@
-package org.linlinjava.litemall.wx.leshua;
+package org.linlinjava.litemall.pay.bean.leshua;
 
 import org.linlinjava.litemall.db.util.OrderUtil;
 

@@ -26,6 +26,7 @@
         <module>litemall-admin-api</module>
         <module>litemall-all</module>
         <module>litemall-all-war</module>
+        <module>litemall-pay-leshua</module>
     </modules>
 
     <dependencyManagement>
@@ -53,6 +54,11 @@
             <dependency>
                 <groupId>org.linlinjava</groupId>
                 <artifactId>litemall-all</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.linlinjava</groupId>
+                <artifactId>litemall-pay-leshua</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

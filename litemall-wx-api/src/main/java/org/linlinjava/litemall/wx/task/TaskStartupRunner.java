@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -39,8 +40,10 @@ public class TaskStartupRunner implements ApplicationRunner {
                 long delay = ChronoUnit.MILLIS.between(now, expire);
                 taskService.addTask(new OrderUnpaidTask(order.getId(), delay));
 
-                // 增加查询订单状态的任务
-                taskService.addTask(new OrderStatusQueryTask(order.getId()));
+                // 增加查询订单状态的任务，只有未完成支付的才需要查询
+                if (StringUtils.hasText(order.getPayType())) {
+                    taskService.addTask(new OrderStatusQueryTask(order.getId()));
+                }
             }
         }
     }

@@ -13,7 +13,6 @@ import com.google.common.collect.Maps;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.linlinjava.litemall.core.config.LeShuaProperties;
 import org.linlinjava.litemall.core.express.ExpressService;
 import org.linlinjava.litemall.core.express.dao.ExpressInfo;
 import org.linlinjava.litemall.core.notify.NotifyService;
@@ -28,8 +27,10 @@ import org.linlinjava.litemall.db.util.CouponUserConstant;
 import org.linlinjava.litemall.db.util.GrouponConstant;
 import org.linlinjava.litemall.db.util.OrderHandleOption;
 import org.linlinjava.litemall.db.util.OrderUtil;
-import org.linlinjava.litemall.wx.leshua.LeShuaPayResponse;
-import org.linlinjava.litemall.wx.leshua.LeShuaPayResult;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaPayResponse;
+import org.linlinjava.litemall.pay.properties.LeShuaProperties;
+import org.linlinjava.litemall.pay.service.LeShuaService;
+import org.linlinjava.litemall.pay.util.LeShuaUtil;
 import org.linlinjava.litemall.wx.task.OrderStatusQueryTask;
 import org.linlinjava.litemall.wx.task.OrderUnpaidTask;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -108,13 +109,13 @@ public class WxOrderService {
     @Autowired
     private LitemallAftersaleService aftersaleService;
 
-    @Autowired
+    @Autowired(required = false)
     private LeShuaProperties leShuaProperties;
 
     @Autowired
     private RestTemplate restTemplate;
 
-    @Autowired
+    @Autowired(required = false)
     private LeShuaService leShuaService;
     /**
      * 订单列表
@@ -587,7 +588,7 @@ public class WxOrderService {
         }
         WxPayMpOrderResult result = null;
         try {
-            if (!leShuaProperties.isEnable()) {
+            if (leShuaProperties == null) {
                 WxPayUnifiedOrderRequest orderRequest = new WxPayUnifiedOrderRequest();
                 orderRequest.setOutTradeNo(order.getOrderSn());
                 orderRequest.setOpenid(openid);
@@ -606,7 +607,7 @@ public class WxOrderService {
                 otherValueMap.put("jspay_flag","1");
 
                 String responseBody = leShuaService.invoke(reqUrl, order.getOrderSn(), openid, otherValueMap);
-                LeShuaPayResponse leShuaPayResponse = LeShuaPayResult.fromXML(responseBody, LeShuaPayResponse.class);
+                LeShuaPayResponse leShuaPayResponse = LeShuaUtil.fromXML(responseBody, LeShuaPayResponse.class);
                 LeShuaPayResponse.JSPayInfo jsPayInfo = leShuaPayResponse.getJsPayInfo();
                 logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
                 result = WxPayMpOrderResult.builder().appId(jsPayInfo.getAppId())
@@ -662,7 +663,7 @@ public class WxOrderService {
 
         WxPayMwebOrderResult result = null;
         try {
-            if (!leShuaProperties.isEnable()) {
+            if (leShuaProperties == null) {
                 order.setPayType(OrderUtil.PayType.WeiXin.getPayType());
 
                 WxPayUnifiedOrderRequest orderRequest = new WxPayUnifiedOrderRequest();
@@ -684,7 +685,7 @@ public class WxOrderService {
                 String openid = user.getWeixinOpenid();
                 openid = "oFpyN0UXZdOdjtMyrGFE49vtY_AM";
                 // 参考文档 https://www.yuque.com/leshuazf/doc/zhifujiaoyi#YGAT6
-                String reqUrl = leShuaProperties.getUrl();
+                String reqUrl = leShuaProperties.getPayUrl();
                 String redirectUrl = JacksonUtil.parseString(body, "redirectUrl");
                 if (redirectUrl == null) {
                     return ResponseUtil.badArgument();
@@ -694,7 +695,7 @@ public class WxOrderService {
                 otherValueMap.put("jspay_flag","2");
 
                 String responseBody = leShuaService.invoke(reqUrl, order.getOrderSn(), openid, otherValueMap);
-                LeShuaPayResponse leShuaPayResponse = LeShuaPayResult.fromXML(responseBody, LeShuaPayResponse.class);
+                LeShuaPayResponse leShuaPayResponse = LeShuaUtil.fromXML(responseBody, LeShuaPayResponse.class);
 
                 if (leShuaPayResponse.isSuccess()) {
                     logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
@@ -831,6 +832,7 @@ public class WxOrderService {
 
         // 取消订单超时未支付任务
         taskService.removeTask(new OrderUnpaidTask(order.getId()));
+        taskService.removeTask(new OrderStatusQueryTask(order.getId()));
 
         return WxPayNotifyResponse.success("处理成功!");
     }
@@ -940,6 +942,7 @@ public class WxOrderService {
 
         // 取消订单超时未支付任务
         taskService.removeTask(new OrderUnpaidTask(order.getId()));
+        taskService.removeTask(new OrderStatusQueryTask(order.getId()));
 
         return WxPayNotifyResponse.success("处理成功!");
     }
