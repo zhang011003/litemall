@@ -41,7 +41,7 @@
       <van-button size="large" type="danger" :loading="isLogining" @click="loginSubmit">登录</van-button>
     </md-field-group>
 
-        <img src="../../assets/images/icon32_appwx_logo.png" @click="loginByWeiXin" width="32" height="32"/>
+        <img src="../../assets/images/icon32_wx_logo.png" @click="loginByWeiXin" width="32" height="32"/>
       <div class="text-desc text-center bottom_positon">技术支持: litemall</div>
 
 	</div>
@@ -117,9 +117,11 @@ export default {
       this.isLogining = true;
       try {
           this.validate();
-          authGetWeiXinCode("http://192.168.0.7:6255/#").then(res => {
-              window.location = res.data.data;
-          });
+          // debugger;
+          // authGetWeiXinCode("http://192.168.0.7:6255/#").then(res => {
+          //     window.location = res.data.data;
+          // });
+          this.$router.go(-2);
           this.isLogining = false;
       } catch (err) {
           console.log(err.message);
