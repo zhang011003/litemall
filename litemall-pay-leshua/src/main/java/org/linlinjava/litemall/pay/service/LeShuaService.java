@@ -59,6 +59,7 @@ public class LeShuaService {
         // TODO: 测试时设置金额为1分钱
         postDataMap.put("amount", "1");
         postDataMap.put("refund_amount", "1");
+
         postDataMap.put("merchant_id", leShuaProperties.getMerchantId());
         postDataMap.put("nonce_str", String.valueOf(System.currentTimeMillis()));
         postDataMap.put("sign", LeShuaUtil.getSign(postDataMap, leShuaProperties.getKey()));

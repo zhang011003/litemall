@@ -27,6 +27,9 @@ public class LeShuaRefundResponse extends BaseLeShuaResponse {
     @XStreamAlias("order_balance")
     private String remainAmount;
 
+    @XStreamAlias("leshua_refund_id")
+    private String leshuaRefundId;
+
     public LeShuaStatus getLeShuaStatus() {
         return LeShuaStatus.getLeShuaStatus(getStatus());
     }

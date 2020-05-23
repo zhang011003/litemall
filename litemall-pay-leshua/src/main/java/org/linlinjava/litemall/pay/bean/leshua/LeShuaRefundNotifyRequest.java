@@ -2,6 +2,7 @@ package org.linlinjava.litemall.pay.bean.leshua;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import lombok.Data;
+import org.linlinjava.litemall.pay.properties.LeShuaProperties;
 import org.springframework.util.StringUtils;
 
 @XStreamAlias("leshua")
@@ -42,7 +43,7 @@ public class LeShuaRefundNotifyRequest extends BaseLeShuaResponse {
     }
 
     @Override
-    public boolean isSuccess() {
-        return !StringUtils.hasText(this.failureReason);
+    protected String getKey(LeShuaProperties leShuaProperties) {
+        return leShuaProperties.getNotifyKey();
     }
 }

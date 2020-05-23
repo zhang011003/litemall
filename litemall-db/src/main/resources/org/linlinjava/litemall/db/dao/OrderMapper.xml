@@ -55,6 +55,9 @@
             <if test="order.payId != null">
                 pay_id = #{order.payId,jdbcType=VARCHAR},
             </if>
+            <if test="order.payType != null">
+                pay_type = #{order.payType,jdbcType=VARCHAR},
+            </if>
             <if test="order.payTime != null">
                 pay_time = #{order.payTime,jdbcType=TIMESTAMP},
             </if>

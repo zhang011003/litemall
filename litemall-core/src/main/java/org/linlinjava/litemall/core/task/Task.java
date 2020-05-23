@@ -10,9 +10,10 @@ public abstract class Task implements Delayed, Runnable{
     private String id = "";
     private long start = 0;
     protected boolean needReenterQueue = false;
-
+    private long delayInMilliseconds;
     public Task(String id, long delayInMilliseconds){
         this.id = id;
+        this.delayInMilliseconds = delayInMilliseconds;
         this.start = System.currentTimeMillis() + delayInMilliseconds;
     }
 
@@ -28,6 +29,11 @@ public abstract class Task implements Delayed, Runnable{
     public long getDelay(TimeUnit unit) {
         long diff = this.start - System.currentTimeMillis();
         return unit.convert(diff, TimeUnit.MILLISECONDS);
+    }
+
+    public final void reset() {
+        this.start = System.currentTimeMillis() + this.delayInMilliseconds;
+        this.needReenterQueue = false;
     }
 
     @Override
@@ -49,5 +55,12 @@ public abstract class Task implements Delayed, Runnable{
     @Override
     public int hashCode() {
         return this.id.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return "Task{" +
+                "id='" + id + '\'' +
+                '}';
     }
 }

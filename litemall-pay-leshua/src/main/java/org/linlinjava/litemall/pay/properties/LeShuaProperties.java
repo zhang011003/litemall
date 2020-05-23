@@ -14,7 +14,15 @@ public class LeShuaProperties {
 
     private String merchantId;
 
+    /**
+     * 通用key
+     */
     private String key;
+
+    /**
+     * 收到通知时获取sign用到的key
+     */
+    private String notifyKey;
 
     private String payNotifyUrl;
 

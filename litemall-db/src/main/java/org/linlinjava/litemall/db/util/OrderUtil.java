@@ -23,7 +23,7 @@ import java.util.List;
 public class OrderUtil {
     // TODO: 增加支付方式需要在该枚举类中增加对应的值
     public enum PayType {
-        WeiXin("wx"), ZhiFuBao("zfb"), LeShua("ls"),
+        WeiXin("wx"), ZhiFuBao("zfb"), LeShuaWeiXin("lswx"),LeShuaZhiFuBao("lszfb"),
 
         UNKNOWN("unknown");
         private String payType;
@@ -41,6 +41,40 @@ public class OrderUtil {
                     .filter(p -> p.getPayType().equals(payType))
                     .findFirst()
                     .orElse(UNKNOWN);
+        }
+    }
+
+    public enum Status {
+        STATUS_CREATE(OrderUtil.STATUS_CREATE),
+        STATUS_PAY(OrderUtil.STATUS_PAY),
+        STATUS_SHIP(OrderUtil.STATUS_SHIP),
+        STATUS_CONFIRM(OrderUtil.STATUS_CONFIRM),
+        STATUS_CANCEL(OrderUtil.STATUS_CANCEL),
+        STATUS_AUTO_CANCEL(OrderUtil.STATUS_AUTO_CANCEL),
+        STATUS_ADMIN_CANCEL(OrderUtil.STATUS_ADMIN_CANCEL),
+        STATUS_REFUND(OrderUtil.STATUS_REFUND),
+        STATUS_REFUND_CONFIRM(OrderUtil.STATUS_REFUND_CONFIRM),
+        STATUS_AUTO_CONFIRM(OrderUtil.STATUS_AUTO_CONFIRM);
+
+        private Short status;
+
+        Status(Short status) {
+            this.status = status;
+        }
+
+        public Short getStatus() {
+            return status;
+        }
+        @Override
+        public String toString() {
+            return super.toString() + "(status = " + getStatus() + ")";
+        }
+
+        public static Status getStatus(Short status) {
+            return Arrays.stream(Status.values())
+                    .filter(s -> s.getStatus() == status)
+                    .findFirst()
+                    .orElseThrow(IllegalArgumentException::new);
         }
     }
 

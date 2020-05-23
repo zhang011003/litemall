@@ -9,7 +9,7 @@ import com.github.binarywang.wxpay.bean.result.BaseWxPayResult;
 import com.github.binarywang.wxpay.constant.WxPayConstants;
 import com.github.binarywang.wxpay.exception.WxPayException;
 import com.github.binarywang.wxpay.service.WxPayService;
-import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -20,13 +20,18 @@ import org.linlinjava.litemall.core.notify.NotifyType;
 import org.linlinjava.litemall.core.qcode.QCodeService;
 import org.linlinjava.litemall.core.system.SystemConfig;
 import org.linlinjava.litemall.core.task.TaskService;
-import org.linlinjava.litemall.core.util.*;
+import org.linlinjava.litemall.core.util.DateTimeUtil;
+import org.linlinjava.litemall.core.util.IpUtil;
+import org.linlinjava.litemall.core.util.JacksonUtil;
+import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
 import org.linlinjava.litemall.db.util.CouponUserConstant;
 import org.linlinjava.litemall.db.util.GrouponConstant;
 import org.linlinjava.litemall.db.util.OrderHandleOption;
 import org.linlinjava.litemall.db.util.OrderUtil;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaCloseResponse;
+import org.linlinjava.litemall.pay.bean.leshua.LeShuaPayNotifyRequest;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaPayResponse;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
 import org.linlinjava.litemall.pay.properties.LeShuaProperties;
@@ -38,6 +43,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
@@ -45,7 +51,11 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.linlinjava.litemall.wx.util.WxResponseCode.*;
 
@@ -68,6 +78,7 @@ import static org.linlinjava.litemall.wx.util.WxResponseCode.*;
  * 当402系统自动确认收货以后，此时用户可以删除订单，评价商品，申请售后，或者再次购买
  */
 @Service
+@Slf4j
 public class WxOrderService {
     private final Log logger = LogFactory.getLog(WxOrderService.class);
 
@@ -515,12 +526,37 @@ public class WxOrderService {
             return ResponseUtil.badArgumentValue();
         }
 
-        LocalDateTime preUpdateTime = order.getUpdateTime();
+        Object result = closeOrder(order);
+        if (result != null) {
+            return result;
+        }
 
+        return ResponseUtil.ok();
+    }
+
+    @Transactional
+    public Object closeOrder(LitemallOrder order) {
         // 检测是否能够取消
         OrderHandleOption handleOption = OrderUtil.build(order);
         if (!handleOption.isCancel()) {
             return ResponseUtil.fail(ORDER_INVALID_OPERATION, "订单不能取消");
+        }
+
+        //TODO: 其它支付是否需要关闭订单?
+        if (StringUtils.hasText(order.getPayId())) {
+            OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
+            switch (payType) {
+                case LeShuaWeiXin:
+                    LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getCloseUrl())
+                            .setService("close_order").setLeshuaOrderId(order.getPayId());
+                    LeShuaCloseResponse leShuaCloseResponse = leShuaService.invoke(leShuaRequest, LeShuaCloseResponse.class);
+                    if (!leShuaCloseResponse.isSuccess(leShuaProperties)) {
+                        log.warn("Order cannot be cancelled by leshua, orderSn:{}, leshua status:{}", order.getOrderSn(), leShuaCloseResponse.getLeShuaStatus());
+                    }
+                    break;
+                default:
+                    break;
+            }
         }
 
         // 设置订单已取消状态
@@ -531,7 +567,7 @@ public class WxOrderService {
         }
 
         // 商品货品数量增加
-        List<LitemallOrderGoods> orderGoodsList = orderGoodsService.queryByOid(orderId);
+        List<LitemallOrderGoods> orderGoodsList = orderGoodsService.queryByOid(order.getId());
         for (LitemallOrderGoods orderGoods : orderGoodsList) {
             Integer productId = orderGoods.getProductId();
             Short number = orderGoods.getNumber();
@@ -540,7 +576,7 @@ public class WxOrderService {
             }
         }
 
-        return ResponseUtil.ok();
+        return null;
     }
 
     /**
@@ -667,7 +703,9 @@ public class WxOrderService {
         int fee = 0;
         BigDecimal actualPrice = order.getActualPrice();
         fee = actualPrice.multiply(new BigDecimal(100)).intValue();
+
         WxPayMwebOrderResult result = null;
+        boolean needToUpdateOrder = true;
         try {
             if (leShuaProperties == null) {
                 order.setPayType(OrderUtil.PayType.WeiXin.getPayType());
@@ -682,17 +720,20 @@ public class WxOrderService {
 
                 result = wxPayService.createOrder(orderRequest);
             } else {
-                order.setPayType(OrderUtil.PayType.LeShua.getPayType());
+                order.setPayType(OrderUtil.PayType.LeShuaWeiXin.getPayType());
 
                 LitemallUser user = userService.findById(userId);
                 String openid = user.getWeixinOpenid();
+                //TODO:
                 openid = "oFpyN0UXZdOdjtMyrGFE49vtY_AM";
+
                 // 参考文档 https://www.yuque.com/leshuazf/doc/zhifujiaoyi#YGAT6
-                String reqUrl = leShuaProperties.getPayUrl();
                 String redirectUrl = JacksonUtil.parseString(body, "redirectUrl");
                 if (redirectUrl == null) {
                     return ResponseUtil.badArgument();
                 }
+
+                // TODO: 之前调用过支付接口，但没有完成付款的情况，目前不支持
                 LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getPayUrl())
                         .setService("get_tdcode").setAmount(String.valueOf(fee))
                         .setJumpUrl(redirectUrl)
@@ -702,10 +743,10 @@ public class WxOrderService {
                 String responseBody = leShuaService.invoke(leShuaRequest);
                 LeShuaPayResponse leShuaPayResponse = LeShuaUtil.fromXML(responseBody, LeShuaPayResponse.class);
 
-                if (leShuaPayResponse.isSuccess()) {
-                    logger.info("Leshua order id is:" + leShuaPayResponse.getLeshuaOrderId());
+                if (leShuaPayResponse.isSuccess(leShuaProperties)) {
+                    logger.info("Leshua order id=" + leShuaPayResponse.getLeshuaOrderId());
                     order.setPayId(leShuaPayResponse.getLeshuaOrderId());
-                    order.setPayType(OrderUtil.PayType.LeShua.getPayType());
+                    order.setPayType(OrderUtil.PayType.LeShuaWeiXin.getPayType());
 
                     // 订单支付状态主动查询
                     taskService.addTask(new OrderStatusQueryTask(orderId));
@@ -719,8 +760,10 @@ public class WxOrderService {
             e.printStackTrace();
         }
 
-        if (orderService.updateWithOptimisticLocker(order) == 0) {
-            return ResponseUtil.updatedDateExpired();
+        if (needToUpdateOrder) {
+            if (orderService.updateWithOptimisticLocker(order) == 0) {
+                return ResponseUtil.updatedDateExpired();
+            }
         }
 
         return ResponseUtil.ok(result);
@@ -796,116 +839,69 @@ public class WxOrderService {
             return WxPayNotifyResponse.fail("更新数据已失效");
         }
 
-        //  支付成功，有团购信息，更新团购信息
-        LitemallGroupon groupon = grouponService.queryByOrderId(order.getId());
-        if (groupon != null) {
-            LitemallGrouponRules grouponRules = grouponRulesService.findById(groupon.getRulesId());
-
-            //仅当发起者才创建分享图片
-            if (groupon.getGrouponId() == 0) {
-                String url = qCodeService.createGrouponShareImage(grouponRules.getGoodsName(), grouponRules.getPicUrl(), groupon);
-                groupon.setShareUrl(url);
-            }
-            groupon.setStatus(GrouponConstant.STATUS_ON);
-            if (grouponService.updateById(groupon) == 0) {
-                return WxPayNotifyResponse.fail("更新数据已失效");
-            }
-
-
-            List<LitemallGroupon> grouponList = grouponService.queryJoinRecord(groupon.getGrouponId());
-            if (groupon.getGrouponId() != 0 && (grouponList.size() >= grouponRules.getDiscountMember() - 1)) {
-                for (LitemallGroupon grouponActivity : grouponList) {
-                    grouponActivity.setStatus(GrouponConstant.STATUS_SUCCEED);
-                    grouponService.updateById(grouponActivity);
-                }
-
-                LitemallGroupon grouponSource = grouponService.queryById(groupon.getGrouponId());
-                grouponSource.setStatus(GrouponConstant.STATUS_SUCCEED);
-                grouponService.updateById(grouponSource);
-            }
+        String postHandlerResult = paySuccessPostHandler(order);
+        if (StringUtils.hasText(postHandlerResult)) {
+            return postHandlerResult;
         }
-
-        //TODO 发送邮件和短信通知，这里采用异步发送
-        // 订单支付成功以后，会发送短信给用户，以及发送邮件给管理员
-        notifyService.notifyMail("新订单通知", order.toString());
-        // 这里微信的短信平台对参数长度有限制，所以将订单号只截取后6位
-        notifyService.notifySmsTemplateSync(order.getMobile(), NotifyType.PAY_SUCCEED, new String[]{orderSn.substring(8, 14)});
-
-        // 请依据自己的模版消息配置更改参数
-        String[] parms = new String[]{
-                order.getOrderSn(),
-                order.getOrderPrice().toString(),
-                DateTimeUtil.getDateTimeDisplayString(order.getAddTime()),
-                order.getConsignee(),
-                order.getMobile(),
-                order.getAddress()
-        };
-
-        // 取消订单超时未支付任务
-        taskService.removeTask(new OrderUnpaidTask(order.getId()));
-        taskService.removeTask(new OrderStatusQueryTask(order.getId()));
-
         return WxPayNotifyResponse.success("处理成功!");
     }
 
     @Transactional
-    public Object payNotifyLeshua(HttpServletRequest request, HttpServletResponse response) {
-        //TODO:
-        String xmlResult = null;
-        try {
-            xmlResult = IOUtils.toString(request.getInputStream(), request.getCharacterEncoding());
-        } catch (IOException e) {
-            e.printStackTrace();
-            return WxPayNotifyResponse.fail(e.getMessage());
+    public Object payNotifyLeshua(String requestBody) {
+        String returnCode = "000000";
+        String errorCode = "-1";
+
+        LeShuaPayNotifyRequest payNotifyRequest = LeShuaUtil.fromXML(requestBody, LeShuaPayNotifyRequest.class);
+
+        if (!payNotifyRequest.isSuccess(leShuaProperties)) {
+            return errorCode;
         }
 
-        WxPayOrderNotifyResult result = null;
-        try {
-            result = wxPayService.parseOrderNotifyResult(xmlResult);
+        logger.info("处理乐刷支付平台的订单支付回调");
 
-            if(!WxPayConstants.ResultCode.SUCCESS.equals(result.getResultCode())){
-                logger.error(xmlResult);
-                throw new WxPayException("微信通知支付失败！");
-            }
-            if(!WxPayConstants.ResultCode.SUCCESS.equals(result.getReturnCode())){
-                logger.error(xmlResult);
-                throw new WxPayException("微信通知支付失败！");
-            }
-        } catch (WxPayException e) {
-            e.printStackTrace();
-            return WxPayNotifyResponse.fail(e.getMessage());
-        }
-
-        logger.info("处理腾讯支付平台的订单支付");
-        logger.info(result);
-
-        String orderSn = result.getOutTradeNo();
-        String payId = result.getTransactionId();
+        String orderSn = payNotifyRequest.getThirdOrderId();
+        String payId = payNotifyRequest.getLeshuaOrderId();
 
         // 分转化成元
-        String totalFee = BaseWxPayResult.fenToYuan(result.getTotalFee());
+        String totalFee = BaseWxPayResult.fenToYuan(Integer.parseInt(payNotifyRequest.getAmount()));
         LitemallOrder order = orderService.findBySn(orderSn);
         if (order == null) {
-            return WxPayNotifyResponse.fail("订单不存在 sn=" + orderSn);
+            log.warn("Order does not exist, orderSn={}", orderSn);
+            return errorCode;
         }
 
         // 检查这个订单是否已经处理过
         if (OrderUtil.hasPayed(order)) {
-            return WxPayNotifyResponse.success("订单已经处理成功!");
+            log.info("Order has been paid, orderSn={}", orderSn);
+            return returnCode;
         }
 
         // 检查支付订单金额
         if (!totalFee.equals(order.getActualPrice().toString())) {
-            return WxPayNotifyResponse.fail(order.getOrderSn() + " : 支付金额不符合 totalFee=" + totalFee);
+            log.info("Total fee does not equals actualPrice, orderSn={}, totalFee={}, actualPrice={}",
+                    orderSn, totalFee, order.getActualPrice());
+            return errorCode;
         }
 
         order.setPayId(payId);
-        order.setPayTime(LocalDateTime.now());
+        order.setPayTime(LocalDateTime.parse(payNotifyRequest.getPayTime(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         order.setOrderStatus(OrderUtil.STATUS_PAY);
         if (orderService.updateWithOptimisticLocker(order) == 0) {
-            return WxPayNotifyResponse.fail("更新数据已失效");
+            log.warn("更新数据已失效, orderSn={}", orderSn);
+            return returnCode;
         }
 
+        paySuccessPostHandler(order);
+
+        return returnCode;
+    }
+
+    /**
+     * 付款成功后续操作
+     * @param order
+     * @return
+     */
+    public String paySuccessPostHandler(LitemallOrder order) {
         //  支付成功，有团购信息，更新团购信息
         LitemallGroupon groupon = grouponService.queryByOrderId(order.getId());
         if (groupon != null) {
@@ -939,7 +935,7 @@ public class WxOrderService {
         // 订单支付成功以后，会发送短信给用户，以及发送邮件给管理员
         notifyService.notifyMail("新订单通知", order.toString());
         // 这里微信的短信平台对参数长度有限制，所以将订单号只截取后6位
-        notifyService.notifySmsTemplateSync(order.getMobile(), NotifyType.PAY_SUCCEED, new String[]{orderSn.substring(8, 14)});
+        notifyService.notifySmsTemplateSync(order.getMobile(), NotifyType.PAY_SUCCEED, new String[]{order.getOrderSn().substring(8, 14)});
 
         // 请依据自己的模版消息配置更改参数
         String[] parms = new String[]{
@@ -955,9 +951,8 @@ public class WxOrderService {
         taskService.removeTask(new OrderUnpaidTask(order.getId()));
         taskService.removeTask(new OrderStatusQueryTask(order.getId()));
 
-        return WxPayNotifyResponse.success("处理成功!");
+        return "";
     }
-
     /**
      * 订单申请退款
      * <p>

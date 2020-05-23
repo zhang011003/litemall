@@ -120,8 +120,8 @@ public class WxOrderController {
     }
 
     @PostMapping("pay-notify-leshua")
-    public Object payNotifyLeshua(HttpServletRequest request, HttpServletResponse response) {
-        return wxOrderService.payNotifyLeshua(request, response);
+    public Object payNotifyLeshua(@RequestBody String requestBody) {
+        return wxOrderService.payNotifyLeshua(requestBody);
     }
 
     /**

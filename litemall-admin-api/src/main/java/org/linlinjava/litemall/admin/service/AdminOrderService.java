@@ -149,7 +149,7 @@ public class AdminOrderService {
                 }
                 refundFinish = true;
                 break;
-            case LeShua:
+            case LeShuaWeiXin:
                 if (leShuaService == null) {
                     return ResponseUtil.fail(ORDER_REFUND_FAILED, "不支持乐刷退款");
                 }
@@ -160,13 +160,14 @@ public class AdminOrderService {
                         .setNotifyUrl(leShuaProperties.getRefundNotifyUrl());
                 LeShuaRefundResponse leShuaRefundResponse = leShuaService.invoke(leShuaRequest, LeShuaRefundResponse.class);
                 wxPayRefundResult = new WxPayRefundResult();
-                if (leShuaRefundResponse.isSuccess()) {
+                if (leShuaRefundResponse.isSuccess(leShuaProperties)) {
                     log.info("Order id: {}, leshua refund status:{}, refund amount:{}",
                             leShuaRefundResponse.getThirdOrderId(),
                             leShuaRefundResponse.getStatus(),
                             leShuaRefundResponse.getRefundAmount());
                     wxPayRefundResult.setReturnCode("SUCCESS");
                     wxPayRefundResult.setResultCode("SUCCESS");
+                    wxPayRefundResult.setRefundId(leShuaRefundResponse.getLeshuaRefundId());
                 } else {
                     wxPayRefundResult.setReturnCode("Failed");
                     wxPayRefundResult.setReturnMsg(leShuaRefundResponse.getErrorMsg());
@@ -209,6 +210,10 @@ public class AdminOrderService {
      * @return
      */
     public void refundPostHandler(Integer orderId, LitemallOrder order, BigDecimal refundAmont) {
+        refundPostHandler(orderId, order, refundAmont, "");
+    }
+
+    public void refundPostHandler(Integer orderId, LitemallOrder order, BigDecimal refundAmont, String comment) {
         LocalDateTime now = LocalDateTime.now();
         // 设置订单取消状态
         order.setOrderStatus(OrderUtil.STATUS_REFUND_CONFIRM);
@@ -222,8 +227,8 @@ public class AdminOrderService {
             case WeiXin:
                 refundType = "微信退款接口";
                 break;
-            case LeShua:
-                refundType = "乐刷退款接口";
+            case LeShuaWeiXin:
+                refundType = "乐刷微信退款接口";
                 break;
             default:
                 break;
@@ -250,8 +255,7 @@ public class AdminOrderService {
         notifyService.notifySmsTemplate(order.getMobile(), NotifyType.REFUND,
                 new String[]{order.getOrderSn().substring(8, 14)});
 
-        logHelper.logOrderSucceed("退款", "订单编号 " + order.getOrderSn());
-
+        logHelper.logOrderSucceed("退款", "订单编号 " + order.getOrderSn(), comment);
     }
 
     /**
@@ -365,14 +369,13 @@ public class AdminOrderService {
 
     public String refundNotifyLeShua(String body) {
         LeShuaRefundNotifyRequest refundNotifyRequest = LeShuaUtil.fromXML(body, LeShuaRefundNotifyRequest.class);
-        if (refundNotifyRequest.isSuccess()) {
+        if (refundNotifyRequest.isSuccess(leShuaProperties)) {
             LitemallOrder litemallOrder = orderService.findBySn(refundNotifyRequest.getThirdOrderId());
-            refundPostHandler(litemallOrder.getId(), litemallOrder, new BigDecimal(refundNotifyRequest.getRefundAmount()));
+            refundPostHandler(litemallOrder.getId(), litemallOrder, new BigDecimal(refundNotifyRequest.getRefundAmount()), "消息通知");
+            return "000000";
         } else {
-            log.warn("Refund failed，reason:{}, order sn:{}",
-                    refundNotifyRequest.getFailureReason(),
-                    refundNotifyRequest.getThirdOrderId());
+            return "-1";
         }
-        return "000000";
+
     }
 }

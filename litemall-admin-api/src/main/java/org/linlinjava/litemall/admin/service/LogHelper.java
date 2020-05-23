@@ -61,7 +61,11 @@ public class LogHelper {
     }
 
     public void logOrderSucceed(String action, String result) {
-        logAdmin(LOG_TYPE_ORDER, action, true, result, "");
+        logOrderSucceed(action, result, "");
+    }
+
+    public void logOrderSucceed(String action, String result, String comment) {
+        logAdmin(LOG_TYPE_ORDER, action, true, result, comment);
     }
 
     public void logOrderFail(String action, String error) {

@@ -3,8 +3,9 @@ litemall:
     url: https://paygate.leshuazf.com/
     merchant_id: 4014116132
     key: EE085A0ABA9D22493B7971B2E1AEB4DF
-    pay-notify-url: http://192.168.0.7:6255/wx/order/pay-notify-leshua
-    refund-notify-url: http://192.168.0.7:6255/admin/order/refund-notify-leshua
+    notify-key: A79CE8B83C9BAA666353B7CA80F4616B
+    pay-notify-url: http://20b75fd6.ngrok.io/wx/order/pay-notify-leshua
+    refund-notify-url: http://20b75fd6.ngrok.io/admin/order/refund-notify-leshua
 
   # 开发者应该设置成自己的wx相关信息
   wx:

@@ -24,7 +24,7 @@ public class OrderRefundUnconfirmQueryTask extends Task {
     private int orderId = -1;
 
     public OrderRefundUnconfirmQueryTask(Integer orderId){
-        super("OrderRefundUnconfirmQueryTask-" + orderId, TimeUnit.SECONDS.toMillis(5));
+        super("OrderRefundUnconfirmQueryTask-" + orderId, TimeUnit.SECONDS.toMillis(10));
         this.orderId = orderId;
     }
 
@@ -51,7 +51,7 @@ public class OrderRefundUnconfirmQueryTask extends Task {
         BigDecimal refundAmount = null;
         OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
         switch (payType) {
-            case LeShua:
+            case LeShuaWeiXin:
                 if (leShuaService == null) {
                     // 支付类型对应的service没有找到，该条记录的订单查询不处理
                     querySuccess = true;
@@ -66,7 +66,7 @@ public class OrderRefundUnconfirmQueryTask extends Task {
                         .setService("unified_query_refund").setLeshuaOrderId(order.getPayId())
                         .setLeshuaRefundId(order.getRefundContent());
                 LeShuaRefundQueryResponse leShuaRefundQueryResponse = leShuaService.invoke(leShuaRequest, LeShuaRefundQueryResponse.class);
-                if (leShuaRefundQueryResponse.isSuccess()) {
+                if (leShuaRefundQueryResponse.isSuccess(leShuaProperties)) {
                     querySuccess = true;
 
                     // 更新订单状态
@@ -74,11 +74,11 @@ public class OrderRefundUnconfirmQueryTask extends Task {
                     if (leShuaStatus == LeShuaStatus.REFUND_CONFIRM) {
                         needUpdateStatus = true;
                         refundAmount = new BigDecimal(leShuaRefundQueryResponse.getSettlementRefundAmount());
-                        log.info("Order id={}, leshua refund id={}, settlement refund amount={}",
+                        log.info("Order id:{}, leshua refund id:{}, settlement refund amount:{}",
                                 order.getId(), order.getRefundContent(),
                                 leShuaRefundQueryResponse.getSettlementRefundAmount());
                     } else if (leShuaStatus == LeShuaStatus.REFUND_FAIL){
-                        log.warn("Order id={}, leshua refund id={} refund failed",
+                        log.warn("Order id:{}, leshua refund id:{} refund failed",
                                 order.getId(), order.getRefundContent());
                     }
                 }
@@ -91,7 +91,8 @@ public class OrderRefundUnconfirmQueryTask extends Task {
         }
 
         if (needUpdateStatus) {
-            adminOrderService.refundPostHandler(orderId, order, refundAmount);
+            //TODO: 调用报shiro错误 No SecurityManager accessible to the calling code, either bound to the org.apache.shiro.util.ThreadContext or as a vm static singleton.  This is an invalid application configuration.
+            adminOrderService.refundPostHandler(orderId, order, refundAmount, "定时查询");
         }
 
         // 查询接口不成功，需要重新入队列更新状态

@@ -1,19 +1,22 @@
 package org.linlinjava.litemall.pay.util;
 
 import com.google.common.collect.Lists;
-import com.qiniu.util.Md5;
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.converters.reflection.PureJavaReflectionProvider;
 import com.thoughtworks.xstream.core.util.QuickWriter;
 import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
 import com.thoughtworks.xstream.io.xml.PrettyPrintWriter;
 import com.thoughtworks.xstream.io.xml.XppDriver;
+import lombok.extern.slf4j.Slf4j;
+import me.chanjar.weixin.common.util.XmlUtils;
 import org.linlinjava.litemall.pay.bean.leshua.BaseLeShuaResponse;
 
 import java.io.Writer;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+@Slf4j
 public class LeShuaUtil {
     private static final XppDriver XPP_DRIVER = new XppDriver() {
         public HierarchicalStreamWriter createWriter(Writer out) {
@@ -63,6 +66,24 @@ public class LeShuaUtil {
         List<String> keys = Lists.newArrayList(map.keySet());
         StringBuilder builder = map.keySet().stream().sorted(String::compareTo).collect(StringBuilder::new, (x, y) -> x.append(y).append("=").append(map.get(y)).append("&"),(x, y)-> x.append(y));
         builder.append("key=").append(key);
-        return Md5.md5(builder.toString().getBytes()).toUpperCase();
+        return MD5.sign(builder.toString());
+    }
+
+    public static boolean verify(String xml, String key) {
+        Map<String, Object> map = XmlUtils.xml2Map(xml);
+        Map<String, String> stringMap = map.entrySet().stream()
+                .filter(e -> !e.getKey().equals("sign"))
+                .filter(e -> !e.getKey().equals("leshua"))
+                .filter(e -> !e.getKey().equals("error_code"))
+                .filter(e -> !e.getKey().equals("resp_code"))
+                .collect(Collectors.toMap(t -> t.getKey(), t -> t.getValue().toString()));
+        String sign = getSign(stringMap, key);
+        boolean verifySuccess = sign.equalsIgnoreCase(map.get("sign").toString());
+        if (!verifySuccess) {
+            log.warn("Sign computed is:{}, from xml is:{}. Two signs are different", sign, map.get("sign"));
+        } else {
+            log.info("Sign verify passed");
+        }
+        return verifySuccess;
     }
 }

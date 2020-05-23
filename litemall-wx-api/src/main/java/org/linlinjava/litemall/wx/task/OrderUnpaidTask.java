@@ -18,6 +18,7 @@ import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
 import org.linlinjava.litemall.pay.properties.LeShuaProperties;
 import org.linlinjava.litemall.pay.service.LeShuaService;
 import org.linlinjava.litemall.pay.util.LeShuaUtil;
+import org.linlinjava.litemall.wx.service.WxOrderService;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,11 +44,8 @@ public class OrderUnpaidTask extends Task {
         logger.info("系统开始处理延时任务---订单超时未付款---" + this.orderId);
 
         LitemallOrderService orderService = BeanUtil.getBean(LitemallOrderService.class);
-        LitemallOrderGoodsService orderGoodsService = BeanUtil.getBean(LitemallOrderGoodsService.class);
-        LitemallGoodsProductService productService = BeanUtil.getBean(LitemallGoodsProductService.class);
 
-        LeShuaService leShuaService = BeanUtil.getBean(LeShuaService.class);
-        LeShuaProperties leShuaProperties = BeanUtil.getBean(LeShuaProperties.class);
+        WxOrderService wxOrderService = BeanUtil.getBean(WxOrderService.class);
 
         LitemallOrder order = orderService.findById(this.orderId);
         if(order == null){
@@ -57,39 +55,8 @@ public class OrderUnpaidTask extends Task {
             return;
         }
 
-        //TODO: 其它支付是否需要关闭订单?
-        OrderUtil.PayType payType = OrderUtil.PayType.getPayType(order.getPayType());
-        switch (payType) {
-            case LeShua:
-                if (leShuaService == null) {
-                    break;
-                }
-                LeShuaRequest leShuaRequest = LeShuaRequest.of(leShuaProperties.getCloseUrl())
-                        .setService("close_order").setLeshuaOrderId(order.getPayId());
-                String response = leShuaService.invoke(leShuaRequest);
-                LeShuaCloseResponse leShuaCloseResponse = LeShuaUtil.fromXML(response, LeShuaCloseResponse.class);
-                log.info("Order {}, leshua status: {}", order.getOrderSn(), leShuaCloseResponse.getLeShuaStatus().getStatus());
-            default:
-                break;
+        wxOrderService.closeOrder(order);
 
-        }
-        // 设置订单已取消状态
-        order.setOrderStatus(OrderUtil.STATUS_AUTO_CANCEL);
-        order.setEndTime(LocalDateTime.now());
-        if (orderService.updateWithOptimisticLocker(order) == 0) {
-            throw new RuntimeException("更新数据已失效");
-        }
-
-        // 商品货品数量增加
-        Integer orderId = order.getId();
-        List<LitemallOrderGoods> orderGoodsList = orderGoodsService.queryByOid(orderId);
-        for (LitemallOrderGoods orderGoods : orderGoodsList) {
-            Integer productId = orderGoods.getProductId();
-            Short number = orderGoods.getNumber();
-            if (productService.addStock(productId, number) == 0) {
-                throw new RuntimeException("商品货品库存增加失败");
-            }
-        }
         logger.info("系统结束处理延时任务---订单超时未付款---" + this.orderId);
     }
 }
