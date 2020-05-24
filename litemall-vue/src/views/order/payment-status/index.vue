@@ -32,13 +32,21 @@ export default {
   },
   data() {
     return {
-      isSuccess: true
+      isSuccess: true,
+      status: 0
     };
   },
 
   computed: {
     statusText() {
-      return this.isSuccess ? '支付成功' : '支付失败';
+      // return this.isSuccess ? '支付成功' : '支付失败';
+      if (this.status === "0") {
+        return '支付成功';
+      } else if (this.status === "1") {
+        return '支付中...'
+      } else {
+        return '支付失败';
+      }
     },
     statusIcon() {
       return this.isSuccess ? 'checked' : 'fail';
@@ -49,7 +57,7 @@ export default {
   },
 
   activated() {
-    this.isSuccess = this.status === 'success';
+    this.isSuccess = (this.status === "0"||this.status === "1");
   }
 };
 </script>

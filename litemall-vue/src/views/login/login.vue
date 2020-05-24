@@ -116,12 +116,11 @@ export default {
     loginByWeiXin() {
       this.isLogining = true;
       try {
-          this.validate();
-          // debugger;
-          // authGetWeiXinCode("http://192.168.0.7:6255/#").then(res => {
-          //     window.location = res.data.data;
-          // });
-          this.$router.go(-2);
+          // this.validate();
+          let redirect = this.$route.query.redirect || 'home';
+          authGetWeiXinCode(window.location.origin + "?redirect=" + redirect).then(res => {
+              window.location = res.data.data;
+          });
           this.isLogining = false;
       } catch (err) {
           console.log(err.message);
@@ -129,12 +128,12 @@ export default {
       }
     },
     routerRedirect() {
-      // const { query } = this.$route;
-      // this.$router.replace({
-      //   name: query.redirect || 'home',
-      //   query: query
-      // });
-      window.location = '#/user/';
+      const { query } = this.$route;
+      this.$router.replace({
+            name: query.redirect || 'home',
+            query: query
+        });
+      // window.location = '#/user/';
     },
 
     getLoginData() {

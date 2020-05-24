@@ -30,6 +30,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -196,8 +200,9 @@ public class WxAuthController {
     }
 
     @GetMapping("/authorize")
-    public Object authorize(@RequestParam("returnUrl") String returnUrl) {
-        String redirectURL = wxMpService.oauth2buildAuthorizationUrl(returnUrl, WxConsts.OAuth2Scope.SNSAPI_USERINFO, returnUrl);
+    public Object authorize(@RequestParam("returnUrl") String returnUrl) throws MalformedURLException {
+        String query = new URL(returnUrl).getQuery();
+        String redirectURL = wxMpService.oauth2buildAuthorizationUrl(returnUrl, WxConsts.OAuth2Scope.SNSAPI_USERINFO, query);
         logger.info("【微信网页授权】获取code,redirectURL=" + redirectURL);
         return ResponseUtil.ok(redirectURL);
     }

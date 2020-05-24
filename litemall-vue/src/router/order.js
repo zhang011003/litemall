@@ -31,6 +31,9 @@ export default [
     path: '/order/payment/:status',
     name: 'paymentStatus',
     component: () => import('@/views/order/payment-status'),
-    props: true
+    props: true,
+    meta: {
+      keepAlive : true
+    }
   }
 ];
