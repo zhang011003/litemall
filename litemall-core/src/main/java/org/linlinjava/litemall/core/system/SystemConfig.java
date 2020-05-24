@@ -1,8 +1,15 @@
 package org.linlinjava.litemall.core.system;
 
+import com.google.common.collect.Maps;
+import org.springframework.util.AntPathMatcher;
+import org.springframework.util.PathMatcher;
+
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 系统设置
@@ -36,7 +43,21 @@ public class SystemConfig {
     private static Map<String, String> SYSTEM_CONFIGS = new HashMap<>();
 
     private static String getConfig(String keyName) {
-        return SYSTEM_CONFIGS.get(keyName);
+        Map<String, String> config = getConfig(keyName, false);
+        return config.getOrDefault(keyName, null);
+    }
+
+    private static Map<String, String> getConfig(String keyName, boolean useAntPattern) {
+        Map<String, String> configValues = Maps.newHashMap();
+        if (useAntPattern) {
+            PathMatcher pathMatcher = new AntPathMatcher();
+            configValues.putAll(SYSTEM_CONFIGS.keySet().stream()
+                    .filter(k -> pathMatcher.match(keyName, k))
+                    .collect(Collectors.toMap(Function.identity(), SYSTEM_CONFIGS::get)));
+        } else {
+            configValues.put(keyName, SYSTEM_CONFIGS.get(keyName));
+        }
+        return configValues;
     }
 
     private static Integer getConfigInt(String keyName) {
@@ -136,7 +157,7 @@ public class SystemConfig {
         }
     }
 
-    public static String getValue(String key) {
-        return getConfig(key);
+    public static Map<String, String> getValue(String key, boolean useAntPattern) {
+        return getConfig(key, useAntPattern);
     }
 }

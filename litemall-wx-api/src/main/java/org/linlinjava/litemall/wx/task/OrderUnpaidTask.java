@@ -55,7 +55,7 @@ public class OrderUnpaidTask extends Task {
             return;
         }
 
-        wxOrderService.closeOrder(order);
+        wxOrderService.closeOrder(order, OrderUtil.Status.STATUS_AUTO_CANCEL);
 
         logger.info("系统结束处理延时任务---订单超时未付款---" + this.orderId);
     }

@@ -15,8 +15,7 @@ import java.util.Map;
 public class WxConfigController {
     @GetMapping("{key}")
     public Object getValue(@PathVariable("key") String key) {
-        Map<Object, Object> data = new HashMap<Object, Object>();
-        data.put(key, SystemConfig.getValue(key));
+        Map<String, String> data = SystemConfig.getValue(key, true);
         return ResponseUtil.ok(data);
     }
 }

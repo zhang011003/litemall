@@ -466,3 +466,11 @@ export function getList(api, query) {
 }
 
 export const REFUND_LIST = '';
+
+const WxConfig='wx/config'; //帮助信息
+export function wxConfig(key) {
+  return request({
+    url: WxConfig+"/"+key,
+    method: 'get'
+  })
+}

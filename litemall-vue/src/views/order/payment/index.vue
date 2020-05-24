@@ -17,13 +17,13 @@
       <div class="pay_way_title">选择支付方式</div>
       <van-radio-group v-model="payWay">
         <van-cell-group>
-          <van-cell>
+          <van-cell v-if="payZfb">
             <template slot="title">
               <img src="../../../assets/images/ali_pay.png" alt="支付宝" width="82" height="29">
             </template>
             <van-radio name="ali"/>
           </van-cell>
-          <van-cell>
+          <van-cell v-if="payWx">
             <template slot="title">
               <img src="../../../assets/images/wx_pay.png" alt="微信支付" width="113" height="23">
             </template>            
@@ -39,7 +39,7 @@
 
 <script>
 import { Radio, RadioGroup, Dialog } from 'vant';
-import { orderDetail, orderPrepay, orderH5pay } from '@/api/api';
+import { orderDetail, orderPrepay, orderH5pay, wxConfig } from '@/api/api';
 import _ from 'lodash';
 import { getLocalStorage, setLocalStorage } from '@/utils/local-storage';
 
@@ -53,13 +53,16 @@ export default {
         orderInfo: {},
         orderGoods: []
       },
-      orderId: 0
+      orderId: 0,
+      payWx: true,
+      payZfb: true,
     };
   },
   created() {
     if (_.has(this.$route.params, 'orderId')) {
       this.orderId = this.$route.params.orderId;
       this.getOrder(this.orderId);
+      this.getConfig();
     }
   },
   methods: {
@@ -68,81 +71,87 @@ export default {
         this.order = res.data.data;
       });
     },
-    pay() {
-      
-      Dialog.alert({
-        message: '你选择了' + (this.payWay === 'wx' ? '微信支付' : '支付宝支付')
-      }).then(() => {
-        if (this.payWay === 'wx') {
-          let ua = navigator.userAgent.toLowerCase();
-          let isWeixin = ua.indexOf('micromessenger') != -1;
-          if (isWeixin) {
-            orderPrepay({ orderId: this.orderId })
-              .then(res => {
-                let data = res.data.data;
-                let prepay_data = JSON.stringify({
-                  appId: data.appId,
-                  timeStamp: data.timeStamp,
-                  nonceStr: data.nonceStr,
-                  package: data.packageValue,
-                  signType: 'MD5',
-                  paySign: data.paySign
-                });
-                setLocalStorage({ prepay_data: prepay_data });
-
-                if (typeof WeixinJSBridge == 'undefined') {
-                  if (document.addEventListener) {
-                    document.addEventListener(
-                      'WeixinJSBridgeReady',
-                      this.onBridgeReady,
-                      false
-                    );
-                  } else if (document.attachEvent) {
-                    document.attachEvent(
-                      'WeixinJSBridgeReady',
-                      this.onBridgeReady
-                    );
-                    document.attachEvent(
-                      'onWeixinJSBridgeReady',
-                      this.onBridgeReady
-                    );
-                  }
-                } else {
-                  this.onBridgeReady();
-                }
-              })
-              .catch(err => {
-                Dialog.alert({ message: err.data.errmsg });
-                that.$router.replace({
-                  name: 'paymentStatus',
-                  params: {
-                    status: 'failed'
-                  }
-                });
-              });
-          } else {
-            orderH5pay({ orderId: this.orderId })
-              .then(res => {
-                let data = res.data.data;
-                window.location.replace(
-                  data.mwebUrl +
-                  '&redirect_url=' +
-                  encodeURIComponent(
-                    window.location.origin +
-                    '/#/?orderId=' +
-                    this.orderId +
-                    '&tip=yes'
-                  )
-                );
-              })
-              .catch(err => {
-                Dialog.alert({ message: err.data.errmsg });
-              });
-          }
-        } else {
-          //todo : alipay
-        }
+    getConfig() {
+      wxConfig("litemall_wx_pay_*").then(res => {
+        this.payWx = res.data.data.litemall_wx_pay_wx == "true";
+        this.payZfb = res.data.data.litemall_wx_pay_zfb == "true";
       });
+    },
+    pay() {
+      if (this.payWay === 'wx') {
+        let ua = navigator.userAgent.toLowerCase();
+        // let isWeixin = ua.indexOf('micromessenger') != -1;
+        // 此处应该使用H5支付
+        let isWeixin = false;
+        if (isWeixin) {
+          orderPrepay({ orderId: this.orderId })
+                  .then(res => {
+                    let data = res.data.data;
+                    let prepay_data = JSON.stringify({
+                      appId: data.appId,
+                      timeStamp: data.timeStamp,
+                      nonceStr: data.nonceStr,
+                      package: data.packageValue,
+                      signType: 'MD5',
+                      paySign: data.paySign
+                    });
+                    setLocalStorage({ prepay_data: prepay_data });
+
+                    if (typeof WeixinJSBridge == 'undefined') {
+                      if (document.addEventListener) {
+                        document.addEventListener(
+                                'WeixinJSBridgeReady',
+                                this.onBridgeReady,
+                                false
+                        );
+                      } else if (document.attachEvent) {
+                        document.attachEvent(
+                                'WeixinJSBridgeReady',
+                                this.onBridgeReady
+                        );
+                        document.attachEvent(
+                                'onWeixinJSBridgeReady',
+                                this.onBridgeReady
+                        );
+                      }
+                    } else {
+                      this.onBridgeReady();
+                    }
+                  })
+                  .catch(err => {
+                    Dialog.alert({ message: err.data.errmsg });
+                    that.$router.replace({
+                      name: 'paymentStatus',
+                      params: {
+                        status: 'failed'
+                      }
+                    });
+                  });
+        } else {
+          let redirectUrl = encodeURIComponent(
+                  window.location.origin +
+                  '/#/order/payment/1');
+          orderH5pay({ orderId: this.orderId, redirectUrl: redirectUrl })
+                  .then(res => {
+                    let data = res.data.data;
+                    window.location.replace(
+                            data.mwebUrl +
+                            '&redirect_url=' +
+                            encodeURIComponent(
+                                    window.location.origin +
+                                    '/#/?orderId=' +
+                                    this.orderId +
+                                    '&tip=yes'
+                            )
+                    );
+                  })
+                  .catch(err => {
+                    Dialog.alert({ message: err.data.errmsg });
+                  });
+        }
+      } else {
+        //todo : alipay
+      }
     },
     onBridgeReady() {
       let that = this;

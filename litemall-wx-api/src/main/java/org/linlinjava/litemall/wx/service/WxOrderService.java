@@ -24,6 +24,7 @@ import org.linlinjava.litemall.core.util.DateTimeUtil;
 import org.linlinjava.litemall.core.util.IpUtil;
 import org.linlinjava.litemall.core.util.JacksonUtil;
 import org.linlinjava.litemall.core.util.ResponseUtil;
+import org.linlinjava.litemall.core.validator.Order;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
 import org.linlinjava.litemall.db.util.CouponUserConstant;
@@ -526,7 +527,7 @@ public class WxOrderService {
             return ResponseUtil.badArgumentValue();
         }
 
-        Object result = closeOrder(order);
+        Object result = closeOrder(order, OrderUtil.Status.STATUS_CANCEL);
         if (result != null) {
             return result;
         }
@@ -534,8 +535,16 @@ public class WxOrderService {
         return ResponseUtil.ok();
     }
 
+    /**
+     * 关闭订单
+     * @param order
+     * @param orderStatus 订单关闭的状态或原因（手工关闭或自动关闭）
+     * @return
+     */
     @Transactional
-    public Object closeOrder(LitemallOrder order) {
+    public Object closeOrder(LitemallOrder order, OrderUtil.Status orderStatus) {
+        boolean orderStateOK = orderStatus != OrderUtil.Status.STATUS_CANCEL && orderStatus != OrderUtil.Status.STATUS_AUTO_CANCEL;
+        Assert.isTrue(orderStateOK, String.format("Order status must be %s or %s", OrderUtil.Status.STATUS_CANCEL, OrderUtil.Status.STATUS_AUTO_CANCEL));
         // 检测是否能够取消
         OrderHandleOption handleOption = OrderUtil.build(order);
         if (!handleOption.isCancel()) {
