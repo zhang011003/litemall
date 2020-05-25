@@ -183,7 +183,7 @@ import { getHome, goodsCategory, couponReceive, authLoginByWeixin } from '@/api/
 import scrollFixed from '@/mixin/scroll-fixed';
 import _ from 'lodash';
 import { getUrlParam } from '@/utils/location-param';
-import { setLocalStorage } from '@/utils/local-storage';
+import { setLocalStorage, getLocalStorage } from '@/utils/local-storage';
 
 import {
   List,
@@ -249,17 +249,20 @@ export default {
       });
     },
     authLoginByWeiXin() {
-      let code = getUrlParam("code");
-      if (code != "") {
-        authLoginByWeixin({"code": code}).then(res => {
-          this.userInfo = res.data.data.userInfo;
-          setLocalStorage({
-            Authorization: res.data.data.token,
-            avatar: this.userInfo.avatarUrl,
-            nickName: this.userInfo.nickName
-          });
+      let auth = getLocalStorage('Authorization');
+      if (!auth.Authorization) {
+        let code = getUrlParam("code");
+        if (code) {
+          authLoginByWeixin({"code": code}).then(res => {
+            this.userInfo = res.data.data.userInfo;
+            setLocalStorage({
+              Authorization: res.data.data.token,
+              avatar: this.userInfo.avatarUrl,
+              nickName: this.userInfo.nickName
+            });
 
-        })
+          })
+        }
       }
     },
 

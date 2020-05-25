@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { Dialog, Toast } from 'vant';
+import { removeLocalStorage} from '@/utils/local-storage';
 
 // create an axios instance
 const service = axios.create({
@@ -26,6 +27,7 @@ service.interceptors.response.use(
     const res = response.data
 
     if (res.errno === 501) {
+        removeLocalStorage("Authorization");
         Toast.fail('请登录');
         setTimeout(() => {
           window.location = '#/login/'

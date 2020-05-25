@@ -543,7 +543,7 @@ public class WxOrderService {
      */
     @Transactional
     public Object closeOrder(LitemallOrder order, OrderUtil.Status orderStatus) {
-        boolean orderStateOK = orderStatus != OrderUtil.Status.STATUS_CANCEL && orderStatus != OrderUtil.Status.STATUS_AUTO_CANCEL;
+        boolean orderStateOK = orderStatus == OrderUtil.Status.STATUS_CANCEL || orderStatus == OrderUtil.Status.STATUS_AUTO_CANCEL;
         Assert.isTrue(orderStateOK, String.format("Order status must be %s or %s", OrderUtil.Status.STATUS_CANCEL, OrderUtil.Status.STATUS_AUTO_CANCEL));
         // 检测是否能够取消
         OrderHandleOption handleOption = OrderUtil.build(order);

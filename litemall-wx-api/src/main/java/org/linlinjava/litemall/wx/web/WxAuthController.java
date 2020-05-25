@@ -154,6 +154,7 @@ public class WxAuthController {
                 logger.info("用户信息：" + userInfo);
             } catch (WxErrorException e) {
                 e.printStackTrace();
+                return ResponseUtil.unlogin();
             }
         }
 
