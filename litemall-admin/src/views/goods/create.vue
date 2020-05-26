@@ -1,7 +1,13 @@
 <template>
   <div class="app-container">
+    <el-steps :active="active" finish-status="success">
+      <el-step title="商品介绍" />
+      <el-step title="商品规格" />
+      <el-step title="商品库存" />
+      <el-step title="商品参数" />
+    </el-steps>
 
-    <el-card class="box-card">
+    <el-card v-if="active==0" class="box-card">
       <h3>商品介绍</h3>
       <el-form ref="goods" :rules="rules" :model="goods" label-width="150px">
         <el-form-item label="商品编号" prop="goodsSn">
@@ -104,7 +110,7 @@
       </el-form>
     </el-card>
 
-    <el-card class="box-card">
+    <el-card v-if="active==1" class="box-card">
       <h3>商品规格</h3>
       <el-row :gutter="20" type="flex" align="middle" style="padding:20px 0;">
         <el-col :span="10">
@@ -182,7 +188,7 @@
       </el-dialog>
     </el-card>
 
-    <el-card class="box-card">
+    <el-card v-if="active==2" class="box-card">
       <h3>商品库存</h3>
       <el-table :data="products">
         <el-table-column property="value" label="货品规格">
@@ -247,7 +253,7 @@
       </el-dialog>
     </el-card>
 
-    <el-card class="box-card">
+    <el-card v-if="active==3" class="box-card">
       <h3>商品参数</h3>
       <el-button type="primary" @click="handleAttributeShow">添加</el-button>
       <el-table :data="attributes">
@@ -285,13 +291,18 @@
 
     <div class="op-container">
       <el-button @click="handleCancel">取消</el-button>
-      <el-button type="primary" @click="handlePublish">上架</el-button>
+      <el-button v-if="active > 0" type="primary" @click="prev">上一步</el-button>
+      <el-button v-if="active < 3" type="primary" @click="next">下一步</el-button>
+      <el-button v-if="active == 3" type="primary" @click="handlePublish">上架</el-button>
     </div>
 
   </div>
 </template>
 
 <style>
+  .op-container {
+    text-align: center;
+  }
   .el-card {
     margin-bottom: 10px;
   }
@@ -349,6 +360,7 @@ export default {
 
   data() {
     return {
+      active: 0,
       uploadPath,
       newKeywordVisible: false,
       newKeyword: '',
@@ -400,6 +412,33 @@ export default {
   },
 
   methods: {
+    prev() {
+      if (this.active-- < 0) {
+        this.active = 0
+      }
+    },
+    next() {
+      if (this.active === 0) {
+        this.validForm('goods')
+      } else {
+        this.nextPage()
+      }
+    },
+    validForm(formName) {
+      const that = this
+      this.$refs[formName].validate((valid) => {
+        if (valid) {
+          that.nextPage()
+        } else {
+          return false
+        }
+      })
+    },
+    nextPage() {
+      if (this.active++ > 3) {
+        this.active = 3
+      }
+    },
     init: function() {
       listCatAndBrand().then(response => {
         this.categoryList = response.data.data.categoryList
@@ -410,7 +449,7 @@ export default {
       this.goods.categoryId = value[value.length - 1]
     },
     handleCancel: function() {
-      this.$router.push({ path: '/goods/goods' })
+      this.$router.push({ path: '/goods/list' })
     },
     handlePublish: function() {
       const finalGoods = {
