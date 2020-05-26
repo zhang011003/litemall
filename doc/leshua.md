@@ -15,7 +15,7 @@ litemall:
     refund-notify-url: http://20b75fd6.ngrok.io/admin/order/refund-notify-leshua #退款完成后的通知地址
 ```
 
-##2 pom文件
+## 2 pom文件
 
 pom.xml中引用
 
@@ -26,6 +26,6 @@ pom.xml中引用
 </dependency>
 ```
 
-##3 代码
+## 3 代码
     
 在启动类中增加注解`@EnableLeShuaPay`
