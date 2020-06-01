@@ -20,7 +20,7 @@ public class StockTest {
     public void testReduceStock() {
         Integer id = 1;
         Short num = 10;
-        goodsProductMapper.reduceStock(id, num);
+        goodsProductMapper.reduceStock(id, num.intValue());
     }
 
     @Test

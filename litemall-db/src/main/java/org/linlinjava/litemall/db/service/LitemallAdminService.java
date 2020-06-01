@@ -24,16 +24,31 @@ public class LitemallAdminService {
         return adminMapper.selectByExample(example);
     }
 
-    public LitemallAdmin findAdmin(Integer id) {
-        return adminMapper.selectByPrimaryKey(id);
+    public LitemallAdmin findAdmin(Integer id, LitemallAdmin.Column... columns) {
+        return adminMapper.selectByPrimaryKeySelective(id, columns);
     }
 
-    public List<LitemallAdmin> querySelective(String username, Integer page, Integer limit, String sort, String order) {
+    public List<LitemallAdmin> findAdmin(List<Integer> ids, LitemallAdmin.Column... columns) {
+        LitemallAdminExample example = new LitemallAdminExample();
+        example.or().andIdIn(ids).andDeletedEqualTo(false);
+        return adminMapper.selectByExampleSelective(example, columns);
+    }
+
+    public long countAdmin(List<Integer> ids) {
+        LitemallAdminExample example = new LitemallAdminExample();
+        example.or().andIdIn(ids).andDeletedEqualTo(false);
+        return adminMapper.countByExample(example);
+    }
+
+    public List<LitemallAdmin> querySelective(String username, Integer parentId, Integer page, Integer limit, String sort, String order) {
         LitemallAdminExample example = new LitemallAdminExample();
         LitemallAdminExample.Criteria criteria = example.createCriteria();
 
         if (!StringUtils.isEmpty(username)) {
             criteria.andUsernameLike("%" + username + "%");
+        }
+        if (parentId != null) {
+            criteria.andParentEqualTo(parentId);
         }
         criteria.andDeletedEqualTo(false);
 

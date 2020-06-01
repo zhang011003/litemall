@@ -1,30 +1,33 @@
 package org.linlinjava.litemall.admin.service;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import com.google.common.collect.Lists;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.shiro.SecurityUtils;
 import org.linlinjava.litemall.admin.dto.Goods;
 import org.linlinjava.litemall.admin.dto.GoodsAllinone;
 import org.linlinjava.litemall.admin.vo.CatVo;
+import org.linlinjava.litemall.admin.vo.GoodsProductAgentVo;
+import org.linlinjava.litemall.admin.vo.GoodsProductVo;
 import org.linlinjava.litemall.core.qcode.QCodeService;
 import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.linlinjava.litemall.admin.util.AdminResponseCode.GOODS_NAME_EXIST;
 
 @Service
+@Slf4j
 public class AdminGoodsService {
-    private final Log logger = LogFactory.getLog(AdminGoodsService.class);
+//    private final Log logger = LogFactory.getLog(AdminGoodsService.class);
 
     @Autowired
     private LitemallGoodsService goodsService;
@@ -43,9 +46,44 @@ public class AdminGoodsService {
     @Autowired
     private QCodeService qCodeService;
 
+    @Autowired
+    private LitemallGoodsProductAgentService goodsProductAgentService;
+
     public Object list(Goods goods,
                        Integer page, Integer limit, String sort, String order) {
-        List<LitemallGoods> goodsList = goodsService.querySelective(goods.getGoodsId(), goods.getGoodsSn(), goods.getName(), page, limit, sort, order);
+        List<LitemallGoods> goodsList = Lists.newArrayList();
+
+        LitemallAdmin litemallAdmin = (LitemallAdmin) SecurityUtils.getSubject().getPrincipal();
+        if (litemallAdmin.getParent() != null) {
+            Map<Integer, List<LitemallGoodsProductAgent>> gpaMap = goodsProductAgentService.queryByAgentId(litemallAdmin.getId())
+                    .stream().collect(Collectors.toMap(LitemallGoodsProductAgent::getGoodsId, agent -> Lists.newArrayList(agent), (a, b) -> {
+                        a.addAll(b);
+                        return a;
+                    }));
+            List<Integer> goodsIdList = Lists.newArrayList(gpaMap.keySet());
+            if (goodsIdList.size() > 0) {
+                if (goodsIdList.contains(goods.getGoodsId())) {
+                    goodsList = goodsService.querySelective(goods.getGoodsId(),goods.getGoodsSn(), goods.getName(), page, limit, sort, order);
+                } else {
+                    goodsList = goodsService.querySelective(goodsIdList, goods.getGoodsSn(), goods.getName(), page, limit, sort, order);
+                }
+
+                // 重新设置当前价格
+                if (goodsList != null) {
+                    goodsList.forEach(litemallGoods -> {
+                        Optional<LitemallGoodsProductAgent> gpa = gpaMap.get(litemallGoods.getId()).stream()
+                                .min(Comparator.comparing(LitemallGoodsProductAgent::getPrice));
+                        if (gpa.isPresent()) {
+                            litemallGoods.setRetailPrice(gpa.get().getPrice());
+                        }
+                    });
+                }
+            } else {
+                log.warn("There has no dispatched goods");
+            }
+        } else {
+            goodsList = goodsService.querySelective(goods.getGoodsId(), goods.getGoodsSn(), goods.getName(), page, limit, sort, order);
+        }
         return ResponseUtil.okList(goodsList);
     }
 
@@ -330,8 +368,42 @@ public class AdminGoodsService {
     }
 
     public Object detail(Integer id) {
+
         LitemallGoods goods = goodsService.findById(id);
-        List<LitemallGoodsProduct> products = productService.queryByGid(id);
+        List<GoodsProductVo> gpVoList;
+
+        LitemallAdmin litemallAdmin = (LitemallAdmin) SecurityUtils.getSubject().getPrincipal();
+        if (litemallAdmin.getParent() != null) {
+            // 可能存在多次派货的情况
+            Map<Integer, List<LitemallGoodsProductAgent>> gpaMaps = goodsProductAgentService.queryByGidAndAgentId(id, litemallAdmin.getId())
+                    .stream().collect(Collectors.toMap(LitemallGoodsProductAgent::getGoodsProductId, gpa -> Lists.newArrayList(gpa), (a, b) -> {
+                        a.addAll(b);
+                        return a;
+                    }));
+            gpVoList = Lists.newArrayList();
+            List<LitemallGoodsProduct> tmpProducts = productService.findByIds(Lists.newArrayList(gpaMaps.keySet()));
+            tmpProducts.stream().forEach(product -> {
+                List<LitemallGoodsProductAgent> gpaList = gpaMaps.get(product.getId());
+                gpaList.stream().forEach(gpa -> {
+                    GoodsProductVo gpaVo = new GoodsProductVo();
+                    BeanUtils.copyProperties(product, gpaVo);
+                    gpaVo.setBasePrice(gpa.getBasePrice());
+                    gpaVo.setNumber(gpa.getNumber());
+                    gpVoList.add(gpaVo);
+                });
+            });
+        } else {
+            List<LitemallGoodsProduct> tmpProducts = productService.queryByGid(id);
+            gpVoList = Lists.newArrayListWithCapacity(tmpProducts.size());
+            tmpProducts.stream().forEach(product -> {
+                GoodsProductVo gpVo = new GoodsProductVo();
+                BeanUtils.copyProperties(product, gpVo);
+                gpVoList.add(gpVo);
+            });
+        }
+
+
+
         List<LitemallGoodsSpecification> specifications = specificationService.queryByGid(id);
         List<LitemallGoodsAttribute> attributes = attributeService.queryByGid(id);
 
@@ -346,11 +418,10 @@ public class AdminGoodsService {
         Map<String, Object> data = new HashMap<>();
         data.put("goods", goods);
         data.put("specifications", specifications);
-        data.put("products", products);
+        data.put("products", gpVoList);
         data.put("attributes", attributes);
         data.put("categoryIds", categoryIds);
 
         return ResponseUtil.ok(data);
     }
-
 }

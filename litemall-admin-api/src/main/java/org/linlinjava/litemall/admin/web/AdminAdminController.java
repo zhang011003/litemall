@@ -6,6 +6,7 @@ import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.apache.shiro.subject.Subject;
 import org.linlinjava.litemall.admin.annotation.RequiresPermissionsDesc;
+import org.linlinjava.litemall.admin.annotation.annotation.AdminLoginUser;
 import org.linlinjava.litemall.admin.service.LogHelper;
 import org.linlinjava.litemall.core.util.RegexUtil;
 import org.linlinjava.litemall.core.util.ResponseUtil;
@@ -43,7 +44,17 @@ public class AdminAdminController {
                        @RequestParam(defaultValue = "10") Integer limit,
                        @Sort @RequestParam(defaultValue = "add_time") String sort,
                        @Order @RequestParam(defaultValue = "desc") String order) {
-        List<LitemallAdmin> adminList = adminService.querySelective(username, page, limit, sort, order);
+        List<LitemallAdmin> adminList = adminService.querySelective(username, null, page, limit, sort, order);
+        return ResponseUtil.okList(adminList);
+    }
+
+    @GetMapping("/listOfMine")
+    public Object listOfMine(@AdminLoginUser Integer loginUserId,
+                       @RequestParam(defaultValue = "1") Integer page,
+                       @RequestParam(defaultValue = "10") Integer limit,
+                       @Sort @RequestParam(defaultValue = "add_time") String sort,
+                       @Order @RequestParam(defaultValue = "desc") String order) {
+        List<LitemallAdmin> adminList = adminService.querySelective(null, loginUserId, page, limit, sort, order);
         return ResponseUtil.okList(adminList);
     }
 
@@ -56,7 +67,7 @@ public class AdminAdminController {
             return ResponseUtil.fail(ADMIN_INVALID_NAME, "管理员名称不符合规定");
         }
         String password = admin.getPassword();
-        if (StringUtils.isEmpty(password) || password.length() < 6) {
+        if (!StringUtils.isEmpty(password) && password.length() < 6) {
             return ResponseUtil.fail(ADMIN_INVALID_PASSWORD, "管理员密码长度不能小于6");
         }
         return null;

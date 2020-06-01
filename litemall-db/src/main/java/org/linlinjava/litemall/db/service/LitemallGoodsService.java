@@ -1,6 +1,7 @@
 package org.linlinjava.litemall.db.service;
 
 import com.github.pagehelper.PageHelper;
+import com.google.common.collect.Lists;
 import org.linlinjava.litemall.db.dao.LitemallGoodsMapper;
 import org.linlinjava.litemall.db.domain.LitemallGoods;
 import org.linlinjava.litemall.db.domain.LitemallGoods.Column;
@@ -128,11 +129,19 @@ public class LitemallGoodsService {
     }
 
     public List<LitemallGoods> querySelective(Integer goodsId, String goodsSn, String name, Integer page, Integer size, String sort, String order) {
+        List<Integer> goodsIds = null;
+        if (goodsId != null) {
+            goodsIds = Lists.newArrayList(goodsId);
+        }
+        return querySelective(goodsIds, goodsSn, name, page, size, sort, order);
+    }
+
+    public List<LitemallGoods> querySelective(List<Integer> goodsIds, String goodsSn, String name, Integer page, Integer size, String sort, String order) {
         LitemallGoodsExample example = new LitemallGoodsExample();
         LitemallGoodsExample.Criteria criteria = example.createCriteria();
 
-        if (goodsId != null) {
-            criteria.andIdEqualTo(goodsId);
+        if (goodsIds != null && goodsIds.size() > 0) {
+            criteria.andIdIn(goodsIds);
         }
         if (!StringUtils.isEmpty(goodsSn)) {
             criteria.andGoodsSnEqualTo(goodsSn);
@@ -160,6 +169,12 @@ public class LitemallGoodsService {
         LitemallGoodsExample example = new LitemallGoodsExample();
         example.or().andIdEqualTo(id).andDeletedEqualTo(false);
         return goodsMapper.selectOneByExampleWithBLOBs(example);
+    }
+
+    public List<LitemallGoods> findByIds(List<Integer> ids, LitemallGoods.Column... columns) {
+        LitemallGoodsExample example = new LitemallGoodsExample();
+        example.or().andIdIn(ids).andDeletedEqualTo(false);
+        return goodsMapper.selectByExampleSelective(example, columns);
     }
 
     /**

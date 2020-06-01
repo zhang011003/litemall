@@ -24,8 +24,19 @@ public class LitemallGoodsProductService {
         return litemallGoodsProductMapper.selectByExample(example);
     }
 
+    public List<LitemallGoodsProduct> queryByGids(List<Integer> gids) {
+        LitemallGoodsProductExample example = new LitemallGoodsProductExample();
+        example.or().andGoodsIdIn(gids).andDeletedEqualTo(false);
+        return litemallGoodsProductMapper.selectByExample(example);
+    }
+
     public LitemallGoodsProduct findById(Integer id) {
         return litemallGoodsProductMapper.selectByPrimaryKey(id);
+    }
+    public List<LitemallGoodsProduct> findByIds(List<Integer> ids, LitemallGoodsProduct.Column... columns) {
+        LitemallGoodsProductExample example = new LitemallGoodsProductExample();
+        example.or().andIdIn(ids);
+        return litemallGoodsProductMapper.selectByExampleSelective(example, columns);
     }
 
     public void deleteById(Integer id) {
@@ -55,6 +66,10 @@ public class LitemallGoodsProductService {
     }
 
     public int reduceStock(Integer id, Short num){
+        return reduceStock(id, num.intValue());
+    }
+
+    public int reduceStock(Integer id, Integer num){
         return goodsProductMapper.reduceStock(id, num);
     }
 
@@ -62,4 +77,5 @@ public class LitemallGoodsProductService {
         product.setUpdateTime(LocalDateTime.now());
         litemallGoodsProductMapper.updateByPrimaryKeySelective(product);
     }
+
 }
