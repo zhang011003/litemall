@@ -7,6 +7,13 @@ export function listAdmin(query) {
     params: query
   })
 }
+export function listAdminOfMine(query) {
+  return request({
+    url: '/admin/listOfMine',
+    method: 'get',
+    params: query
+  })
+}
 
 export function createAdmin(data) {
   return request({
