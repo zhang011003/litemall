@@ -115,7 +115,14 @@ public class PermissionUtil {
 
                 PostMapping postMapping = AnnotationUtils.getAnnotation(method, PostMapping.class);
                 if (postMapping != null) {
-                    api = "POST " + api + postMapping.value()[0];
+                    String postMappingValue = postMapping.value()[0];
+                    if (api.endsWith("/") && postMappingValue.startsWith("/")) {
+                        api = "POST " + api.substring(0, api.length() - 1) + postMappingValue;
+                    } else if (!api.endsWith("/") && !postMappingValue.startsWith("/")) {
+                        api = "POST " + api + "/" + postMappingValue;
+                    } else {
+                        api = "POST " + api + postMappingValue;
+                    }
 
                     Permission permission = new Permission();
                     permission.setRequiresPermissions(requiresPermissions);
@@ -126,7 +133,15 @@ public class PermissionUtil {
                 }
                 GetMapping getMapping = AnnotationUtils.getAnnotation(method, GetMapping.class);
                 if (getMapping != null) {
-                    api = "GET " + api + getMapping.value()[0];
+                    String getMappingValue = getMapping.value()[0];
+                    if (api.endsWith("/") && getMappingValue.startsWith("/")) {
+                        api = "GET " + api.substring(0, api.length() - 1) + getMappingValue;
+                    } else if (!api.endsWith("/") && !getMappingValue.startsWith("/")) {
+                        api = "GET " + api + "/" + getMappingValue;
+                    } else {
+                        api = "GET " + api + getMappingValue;
+                    }
+
                     Permission permission = new Permission();
                     permission.setRequiresPermissions(requiresPermissions);
                     permission.setRequiresPermissionsDesc(requiresPermissionsDesc);
