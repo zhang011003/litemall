@@ -246,6 +246,8 @@ export default {
         return callback(new Error('派货量不能为空'))
       } else if (value > this.productForm.number) {
         return callback(new Error('派货量不能大于货品数量'))
+      } else if (value <= 0) {
+        return callback(new Error('派货量不能为0'))
       } else {
         return callback()
       }

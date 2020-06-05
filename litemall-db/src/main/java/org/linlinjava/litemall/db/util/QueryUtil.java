@@ -26,6 +26,11 @@ public class QueryUtil {
                     String fieldName = CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_CAMEL, field.getName());
                     Method andEqualToMethod = criteriaClass.getDeclaredMethod("and" + fieldName + "EqualTo", field.getType());
                     andEqualToMethod.invoke(criteriaInstance, value);
+                } else if (field.getName().equals("deleted")) {
+                    // 如果deleted字段没有设置，默认设置为false
+                    String fieldName = CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_CAMEL, field.getName());
+                    Method andEqualToMethod = criteriaClass.getDeclaredMethod("and" + fieldName + "EqualTo", field.getType());
+                    andEqualToMethod.invoke(criteriaInstance, false);
                 }
                 field.setAccessible(accessible);
 

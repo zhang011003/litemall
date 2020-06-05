@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.linlinjava.litemall.db.dao.AccountMapper">
+    <update id="updateAccount" parameterType="map">
+        update litemall_account set update_time = now(),
+        <choose>
+            <when test="isAdd">
+            balance = balance + #{balance,jdbcType=DECIMAL}
+            </when>
+            <otherwise>
+            balance = balance - #{balance,jdbcType=DECIMAL}
+            </otherwise>
+        </choose>
+        where admin_id = #{adminId,jdbcType=INTEGER}
+    </update>
+</mapper>

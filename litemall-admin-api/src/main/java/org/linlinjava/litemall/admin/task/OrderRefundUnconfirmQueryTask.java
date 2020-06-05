@@ -1,6 +1,7 @@
 package org.linlinjava.litemall.admin.task;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.shiro.mgt.SecurityManager;
 import org.linlinjava.litemall.admin.service.AdminOrderService;
 import org.linlinjava.litemall.core.task.Task;
 import org.linlinjava.litemall.core.util.BeanUtil;
@@ -34,6 +35,7 @@ public class OrderRefundUnconfirmQueryTask extends Task {
 
         LitemallOrderService orderService = BeanUtil.getBean(LitemallOrderService.class);
         AdminOrderService adminOrderService = BeanUtil.getBean(AdminOrderService.class);
+        SecurityManager securityManager = BeanUtil.getBean(SecurityManager.class);
         LeShuaService leShuaService = BeanUtil.getBean(LeShuaService.class);
         LeShuaProperties leShuaProperties = BeanUtil.getBean(LeShuaProperties.class);
 

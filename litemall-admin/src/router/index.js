@@ -438,6 +438,15 @@ export const asyncRouterMap = [
         }
       },
       {
+        path: 'account',
+        component: () => import('@/views/sys/account'),
+        name: 'account',
+        meta: {
+          title: '账户管理',
+          noCache: true
+        }
+      },
+      {
         path: 'os',
         component: () => import('@/views/sys/os'),
         name: 'os',

@@ -2,6 +2,8 @@ package org.linlinjava.litemall.admin.service;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import io.swagger.models.auth.In;
 import org.apache.shiro.SecurityUtils;
 import org.linlinjava.litemall.admin.dto.Goods;
 import org.linlinjava.litemall.admin.dto.GoodsProductAgent;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
@@ -33,13 +36,27 @@ public class AdminGoodsProductAgentService {
     private LitemallNoticeService noticeService;
     @Autowired
     private LitemallNoticeAdminService noticeAdminService;
+    @Autowired
+    private LitemallAccountService accountService;
+    @Autowired
+    private LitemallAccountHistoryService accountHistoryService;
 
     @Transactional
     public Object dispachProduct(Integer currentUserId, List<GoodsProductAgent> goodsProducts) {
 
-        Set<Integer> adminIds = goodsProducts.stream().map(GoodsProductAgent::getAgentId).collect(Collectors.toSet());
-        long adminCount = adminService.countAdmin(Lists.newArrayList(adminIds));
-        if (adminIds.size() != adminCount) {
+        goodsProducts = merge(goodsProducts);
+
+        Map<Integer, List<GoodsProductAgent>> agentIdMap = goodsProducts.stream().collect(
+                Collectors.toMap(GoodsProductAgent::getAgentId,
+                        Lists::newArrayList,
+                        (a, b) -> {
+                            a.addAll(b);
+                            return a;
+                        })
+        );
+
+        long adminCount = adminService.countAdmin(Lists.newArrayList(agentIdMap.keySet()));
+        if (agentIdMap.size() != adminCount) {
             // 通过agentId查询到的agent个数不对，说明参数传递错误
             return ResponseUtil.badArgument();
         }
@@ -90,6 +107,18 @@ public class AdminGoodsProductAgentService {
             return ResponseUtil.badArgument();
         }
 
+        // 判断代理商余额是否足够
+        for (Map.Entry<Integer, List<GoodsProductAgent>> entry : agentIdMap.entrySet()) {
+            // 派发商品总价
+            BigDecimal sum = entry.getValue().stream().map(agent -> agent.getDispatchPrice().multiply(new BigDecimal(agent.getDispatchNumber())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal balance = accountService.findByAdminIdSelective(entry.getKey(), LitemallAccount.Column.balance).getBalance();
+            if (balance.compareTo(sum) < 0) {
+                String agentName = adminService.findById(entry.getKey()).getUsername();
+                return ResponseUtil.fail(2, agentName + "账户没有足够额度扣减，需要充值金额：" + sum.subtract(balance));
+            }
+        }
+
         for (Map.Entry<LitemallGoodsProductAgent, LitemallGoodsProductAgent> entry : gpaMap.entrySet()) {
             LitemallGoodsProductAgent agent = entry.getKey();
             goodsProductAgentService.add(agent);
@@ -100,8 +129,28 @@ public class AdminGoodsProductAgentService {
                 this.goodsProductService.reduceStock(agent.getGoodsProductId(), agent.getNumber());
             }
         }
-        this.sendNotice(goodsProducts);
+
+        this.afterDispatchGoods(goodsProducts);
         return ResponseUtil.ok();
+    }
+
+
+    /**
+     * 合并相同的数据
+     * @param goodsProducts
+     * @return
+     */
+    private List<GoodsProductAgent> merge(List<GoodsProductAgent> goodsProducts) {
+        Set<GoodsProductAgent> gpaSet = Sets.newHashSet();
+        for (GoodsProductAgent goodsProduct : goodsProducts) {
+            if (gpaSet.contains(goodsProduct)) {
+                gpaSet.remove(goodsProduct);
+                goodsProduct.setDispatchNumber(goodsProduct.getDispatchNumber() + 1);
+            }
+            gpaSet.add(goodsProduct);
+        }
+
+        return Lists.newArrayList(gpaSet);
     }
 
     private LitemallGoodsProductAgent constructGoodsProductAgent(Integer currentUserId, Map<Integer, LitemallGoodsProduct> goodsProductMap, GoodsProductAgent gp) {
@@ -115,7 +164,11 @@ public class AdminGoodsProductAgentService {
         return goodsProductAgent;
     }
 
-    private void sendNotice(List<GoodsProductAgent> goodsProductsAgent) {
+    /**
+     * 派货成功后的操作
+     * @param goodsProductsAgent
+     */
+    private void afterDispatchGoods(List<GoodsProductAgent> goodsProductsAgent) {
         List<Integer> goodsIds = goodsProductsAgent.stream().map(GoodsProductAgent::getGoodsId).collect(Collectors.toList());
         List<LitemallGoods> goods = goodsService.findByIds(goodsIds, LitemallGoods.Column.id, LitemallGoods.Column.name);
         Map<Integer, LitemallGoods> goodsMap = goods.stream().collect(Collectors.toMap(LitemallGoods::getId, Function.identity()));
@@ -124,8 +177,81 @@ public class AdminGoodsProductAgentService {
         List<LitemallGoodsProduct> goodsProducts = goodsProductService.findByIds(goodsProductIds, LitemallGoodsProduct.Column.id, LitemallGoodsProduct.Column.specifications);
         Map<Integer, LitemallGoodsProduct> goodsProductMap = goodsProducts.stream().collect(Collectors.toMap(LitemallGoodsProduct::getId, Function.identity()));
 
+        changeAccount(goodsProductsAgent, goodsMap, goodsProductMap);
+
+        sendNotice(goodsProductsAgent, goodsMap, goodsProductMap);
+    }
+
+    /**
+     * 修改账户余额以及账户变动历史
+     * @param goodsProductsAgent
+     * @param goodsMap
+     * @param goodsProductMap
+     */
+    private void changeAccount(List<GoodsProductAgent> goodsProductsAgent,
+                               Map<Integer, LitemallGoods> goodsMap,
+                               Map<Integer, LitemallGoodsProduct> goodsProductMap) {
         LitemallAdmin litemallAdmin = (LitemallAdmin) SecurityUtils.getSubject().getPrincipal();
 
+        for (int i = 0; i < goodsProductsAgent.size(); i++) {
+            GoodsProductAgent goodsProductAgent = goodsProductsAgent.get(i);
+            // 应支付金额=派货价格*库存
+            BigDecimal money = goodsProductAgent.getDispatchPrice().multiply(new BigDecimal(goodsProductAgent.getDispatchNumber()));
+
+            // 账户历史记录更新
+            List<LitemallAccountHistory> historyList = Lists.newArrayListWithCapacity(2);
+            LitemallAccountHistory history = new LitemallAccountHistory();
+            history.setType((byte) 2);
+            history.setMoney(money);
+            LitemallAccount account = accountService.findByAdminIdSelective(
+                    goodsProductAgent.getAgentId(), LitemallAccount.Column.balance);
+            history.setBalance(account.getBalance().subtract(money));
+            history.setAdminId(goodsProductAgent.getAgentId());
+
+            String detail = String.format("派货成功扣款，派货方：%s, 商品名称：%s, 货品规格：%s，派货价：%s，派货量：%s",
+                    litemallAdmin.getUsername(),
+                    goodsMap.get(goodsProductAgent.getGoodsId()).getName(),
+                    Arrays.toString(goodsProductMap.get(goodsProductAgent.getGoodsProductId()).getSpecifications()),
+                    goodsProductAgent.getDispatchPrice(),
+                    goodsProductAgent.getDispatchNumber());
+            history.setDetail(detail);
+            historyList.add(history);
+
+            history = new LitemallAccountHistory();
+            history.setType((byte) 1);
+            history.setMoney(money);
+            account = accountService.findByAdminIdSelective(
+                    litemallAdmin.getId(), LitemallAccount.Column.balance);
+            history.setBalance(account.getBalance().add(money));
+            history.setAdminId(litemallAdmin.getId());
+
+            LitemallAdmin agentAdmin = adminService.findAdmin(goodsProductAgent.getAgentId(), LitemallAdmin.Column.id, LitemallAdmin.Column.username);
+            detail = String.format("派货成功收款，收货方：%s, 商品名称：%s, 货品规格：%s，派货价：%s，派货量：%s",
+                    agentAdmin.getUsername(),
+                    goodsMap.get(goodsProductAgent.getGoodsId()).getName(),
+                    Arrays.toString(goodsProductMap.get(goodsProductAgent.getGoodsProductId()).getSpecifications()),
+                    goodsProductAgent.getDispatchPrice(),
+                    goodsProductAgent.getDispatchNumber());
+            history.setDetail(detail);
+            historyList.add(history);
+            accountHistoryService.insertHistories(historyList, i);
+
+            // 账户金额更新
+            accountService.updateAccount(goodsProductAgent.getAgentId(),  money, false);
+            accountService.updateAccount(litemallAdmin.getId(),  money, true);
+        }
+    }
+
+    /**
+     * 发送通知
+     * @param goodsProductsAgent
+     * @param goodsMap
+     * @param goodsProductMap
+     */
+    private void sendNotice(List<GoodsProductAgent> goodsProductsAgent,
+                            Map<Integer, LitemallGoods> goodsMap,
+                            Map<Integer, LitemallGoodsProduct> goodsProductMap) {
+        LitemallAdmin litemallAdmin = (LitemallAdmin) SecurityUtils.getSubject().getPrincipal();
         for (GoodsProductAgent goodsProductAgent : goodsProductsAgent) {
             // 收货人收到通知
             LitemallNotice notice = new LitemallNotice();
