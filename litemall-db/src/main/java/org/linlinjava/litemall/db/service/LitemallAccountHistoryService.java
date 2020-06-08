@@ -88,6 +88,7 @@ public class LitemallAccountHistoryService {
      * @return
      */
     public LitemallAccountHistory findLatestAccountHistory(Integer adminId,
+                                                           AccountUtil.Type type,
                                                            AccountUtil.AccountType accountType,
                                                            AccountUtil.AccountStatus accountStatus,
                                                            LitemallAccountHistory.Column... columns) {

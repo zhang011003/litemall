@@ -286,6 +286,15 @@ export const asyncRouterMap = [
           title: '商品评论',
           noCache: true
         }
+      },
+      {
+        path: 'dispatchHistory',
+        component: () => import('@/views/goods/dispatchHistory'),
+        name: 'dispatchHistory',
+        meta: {
+          title: '派货收货',
+          noCache: true
+        }
       }
     ]
   },

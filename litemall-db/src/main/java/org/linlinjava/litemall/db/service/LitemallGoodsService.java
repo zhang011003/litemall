@@ -290,6 +290,12 @@ public class LitemallGoodsService {
     public List<LitemallGoods> queryByIds(Integer[] ids) {
         LitemallGoodsExample example = new LitemallGoodsExample();
         example.or().andIdIn(Arrays.asList(ids)).andIsOnSaleEqualTo(true).andDeletedEqualTo(false);
+        return queryByIds(ids, columns);
+    }
+
+    public List<LitemallGoods> queryByIds(Integer[] ids, LitemallGoods.Column... columns) {
+        LitemallGoodsExample example = new LitemallGoodsExample();
+        example.or().andIdIn(Arrays.asList(ids)).andDeletedEqualTo(false);
         return goodsMapper.selectByExampleSelective(example, columns);
     }
 

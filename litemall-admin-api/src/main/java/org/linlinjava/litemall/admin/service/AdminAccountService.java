@@ -92,6 +92,7 @@ public class AdminAccountService {
         }
         LitemallAccountHistory latestAccountHistory = accountHistoryService.findLatestAccountHistory(
                 litemallAdmin.getId(),
+                AccountUtil.Type.OUTGOINGS,
                 AccountUtil.AccountType.PROFIT,
                 AccountUtil.AccountStatus.CASHOUTING,
                 LitemallAccountHistory.Column.balance,

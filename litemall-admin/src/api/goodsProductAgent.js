@@ -7,3 +7,11 @@ export function dispatchGoods(data) {
     data
   })
 }
+
+export function dispatchHistory(query) {
+  return request({
+    url: '/agent/dispatchHistory/list',
+    method: 'get',
+    params: query
+  })
+}

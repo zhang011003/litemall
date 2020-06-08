@@ -39,6 +39,8 @@ public class AdminGoodsProductAgentService {
     private LitemallAccountService accountService;
     @Autowired
     private LitemallAccountHistoryService accountHistoryService;
+    @Autowired
+    private AdminGoodsDispatchHistoryService dispatchHistoryService;
 
     @Transactional
     public Object dispachProduct(Integer currentUserId, List<GoodsProductAgent> goodsProducts) {
@@ -178,6 +180,8 @@ public class AdminGoodsProductAgentService {
 
         changeAccount(goodsProductsAgent, goodsMap, goodsProductMap);
 
+        saveHistory(goodsProductsAgent, goodsMap, goodsProductMap);
+
         sendNotice(goodsProductsAgent, goodsMap, goodsProductMap);
     }
 
@@ -200,7 +204,8 @@ public class AdminGoodsProductAgentService {
             // 账户历史记录更新
             List<LitemallAccountHistory> historyList = Lists.newArrayListWithCapacity(2);
             LitemallAccountHistory history = new LitemallAccountHistory();
-            history.setType((byte) 2);
+            history.setType(AccountUtil.Type.OUTGOINGS.getType());
+            history.setAccountType(AccountUtil.AccountType.ACCOUNT.getAccountType());
             history.setMoney(money);
             LitemallAccount account = accountService.findByAdminIdAccountSelective(
                     goodsProductAgent.getAgentId(), AccountUtil.AccountType.ACCOUNT, LitemallAccount.Column.balance);
@@ -217,7 +222,8 @@ public class AdminGoodsProductAgentService {
             historyList.add(history);
 
             history = new LitemallAccountHistory();
-            history.setType((byte) 1);
+            history.setType(AccountUtil.Type.INCOME.getType());
+            history.setAccountType(AccountUtil.AccountType.ACCOUNT.getAccountType());
             history.setMoney(money);
             account = accountService.findByAdminIdAccountSelective(
                     litemallAdmin.getId(), AccountUtil.AccountType.ACCOUNT, LitemallAccount.Column.balance);
@@ -238,6 +244,27 @@ public class AdminGoodsProductAgentService {
             // 账户金额更新
             accountService.updateAccount(goodsProductAgent.getAgentId(), AccountUtil.AccountType.ACCOUNT, money, false);
             accountService.updateAccount(litemallAdmin.getId(), AccountUtil.AccountType.ACCOUNT, money, true);
+        }
+    }
+
+    private void saveHistory(List<GoodsProductAgent> goodsProductsAgent, Map<Integer, LitemallGoods> goodsMap, Map<Integer, LitemallGoodsProduct> goodsProductMap) {
+        LitemallAdmin litemallAdmin = (LitemallAdmin) SecurityUtils.getSubject().getPrincipal();
+
+        for (int i = 0; i < goodsProductsAgent.size(); i++) {
+            GoodsProductAgent goodsProductAgent = goodsProductsAgent.get(i);
+
+            // 派货历史记录更新
+            List<LitemallGoodsDispatchHistory> historyList = Lists.newArrayListWithCapacity(2);
+            LitemallGoodsDispatchHistory history = new LitemallGoodsDispatchHistory();
+            history.setAgentId(goodsProductAgent.getAgentId());
+            history.setParentAgentId(litemallAdmin.getId());
+            history.setGoodsId(goodsProductAgent.getGoodsId());
+            history.setDispatchNumber(goodsProductAgent.getDispatchNumber());
+            history.setDispatchPrice(goodsProductAgent.getDispatchPrice());
+            history.setGoodsProductId(goodsProductAgent.getGoodsProductId());
+            historyList.add(history);
+
+            dispatchHistoryService.insertHistories(historyList, i);
         }
     }
 
