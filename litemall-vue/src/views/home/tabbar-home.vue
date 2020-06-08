@@ -14,7 +14,7 @@
       </van-swipe-item>
     </van-swipe>
 
-    <div class="goods-channel">
+    <div class="goods-channel" v-if="shopInfos.channel && shopInfos.channel.length > 0">
       <div class="item"
            @click="changeTabbar(channel)"
            v-for="(channel, index) in shopInfos.channel"
@@ -26,7 +26,7 @@
     </div>
 
     <van-panel title="优惠券"
-               style=" padding-bottom: 10px;">
+               style=" padding-bottom: 10px;" v-if="shopInfos.couponList && shopInfos.couponList.length > 0">
       <div class="van-coupon-item"
            v-for="(coupon,index) in shopInfos.couponList"
            :key="index"
@@ -49,7 +49,7 @@
       </div>
     </van-panel>
 
-    <van-panel>
+    <van-panel v-if="shopInfos.grouponList && shopInfos.grouponList.length > 0">
       <van-card :thumb-link="goDetail(grouponGood.id)"
                 v-for="(grouponGood ,index) in shopInfos.grouponList"
                 :key="index"
@@ -82,7 +82,7 @@
       </div>
     </van-panel>
 
-    <van-panel>
+    <van-panel v-if="shopInfos.brandList && shopInfos.brandList.length > 0">
       <van-grid clickable
                 :column-num="2">
         <van-grid-item v-for="(brand ,index) in shopInfos.brandList"
@@ -105,7 +105,7 @@
       </div>
     </van-panel>
 
-    <van-panel>
+    <van-panel v-if="shopInfos.newGoodsList && shopInfos.newGoodsList.length > 0">
       <van-row gutter>
         <van-col span="12"
                  v-for="(newGood ,index) in shopInfos.newGoodsList"
@@ -129,7 +129,7 @@
       </div>
     </van-panel>
 
-    <van-panel>
+    <van-panel v-if="shopInfos.hotGoodsList && shopInfos.hotGoodsList.length > 0">
       <van-card :thumb-link="goDetail(groupGood.id)"
                 v-for="(groupGood ,index) in shopInfos.hotGoodsList"
                 :key="index"
@@ -152,7 +152,7 @@
       </div>
     </van-panel>
 
-<van-panel>
+    <van-panel v-if="shopInfos.topicList && shopInfos.topicList.length > 0">
       <van-grid clickable
                 :column-num="2">
         <van-grid-item v-for="(topic ,index) in shopInfos.topicList"
@@ -264,8 +264,7 @@ export default {
           })
         }
       }
-    },
-
+    }
   },
 
   components: {

@@ -21,6 +21,7 @@ import org.linlinjava.litemall.db.service.LitemallAccountService;
 import org.linlinjava.litemall.db.service.LitemallAdminService;
 import org.linlinjava.litemall.db.service.LitemallNoticeAdminService;
 import org.linlinjava.litemall.db.service.LitemallNoticeService;
+import org.linlinjava.litemall.db.util.AccountUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -44,12 +45,12 @@ public class AdminAccountController {
 
     @GetMapping
     public Object list() {
-        return ResponseUtil.ok(accountService.findByAdminId());
+        return ResponseUtil.ok(accountService.findByAdminId(AccountUtil.AccountType.ACCOUNT));
     }
 
     @PostMapping("transfer")
     public Object transfer(@RequestBody AdminAccountTransfer transfer) {
-        BigDecimal balance = accountService.findByAdminId().getBalance();
+        BigDecimal balance = accountService.findByAdminId(AccountUtil.AccountType.ACCOUNT).getBalance();
         if (balance.compareTo(transfer.getMoney()) < 0) {
             return ResponseUtil.badArgumentValue();
         }

@@ -119,7 +119,9 @@ export default {
       try {
           // this.validate();
           let redirect = this.$route.query.redirect || 'home';
-          authGetWeiXinCode(window.location.origin + "?redirect=" + redirect).then(res => {
+          const poundIndex = window.location.href.indexOf('#');
+          const returnUrl = window.location.href.substring(0, poundIndex)
+          authGetWeiXinCode(returnUrl + "?redirect=" + redirect).then(res => {
               window.location = res.data.data;
           });
           this.isLogining = false;

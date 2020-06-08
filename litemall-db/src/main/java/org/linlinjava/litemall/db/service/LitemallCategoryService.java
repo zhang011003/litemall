@@ -1,21 +1,29 @@
 package org.linlinjava.litemall.db.service;
 
 import com.github.pagehelper.PageHelper;
+import com.google.common.collect.Lists;
 import org.linlinjava.litemall.db.dao.LitemallCategoryMapper;
 import org.linlinjava.litemall.db.domain.LitemallCategory;
 import org.linlinjava.litemall.db.domain.LitemallCategoryExample;
+import org.linlinjava.litemall.db.domain.LitemallGoods;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class LitemallCategoryService {
     @Resource
     private LitemallCategoryMapper categoryMapper;
     private LitemallCategory.Column[] CHANNEL = {LitemallCategory.Column.id, LitemallCategory.Column.name, LitemallCategory.Column.iconUrl};
+
+    @Autowired
+    private LitemallGoodsService goodsService;
 
     public List<LitemallCategory> queryL1WithoutRecommend(int offset, int limit) {
         LitemallCategoryExample example = new LitemallCategoryExample();
@@ -32,14 +40,41 @@ public class LitemallCategoryService {
     }
 
     public List<LitemallCategory> queryL1() {
+        return queryL1(true);
+    }
+
+    /**
+     * 是否包括没有商品的分类
+     * @param includeEmptyGoods
+     * @return
+     */
+    public List<LitemallCategory> queryL1(boolean includeEmptyGoods) {
         LitemallCategoryExample example = new LitemallCategoryExample();
-        example.or().andLevelEqualTo("L1").andDeletedEqualTo(false);
+        LitemallCategoryExample.Criteria criteria = example.or().andLevelEqualTo("L1").andDeletedEqualTo(false);
+        if (!includeEmptyGoods) {
+            List<LitemallGoods> litemallGoods = goodsService.querySelective(new LitemallGoods(), LitemallGoods.Column.categoryId);
+            Set<Integer> categoryIds = litemallGoods.stream().map(LitemallGoods::getCategoryId).collect(Collectors.toSet());
+            LitemallCategoryExample l2Example = new LitemallCategoryExample();
+            l2Example.createCriteria().andIdIn(Lists.newArrayList(categoryIds));
+            List<LitemallCategory> categories = categoryMapper.selectByExampleSelective(l2Example, LitemallCategory.Column.pid);
+            Set<Integer> pids = categories.stream().map(LitemallCategory::getPid).collect(Collectors.toSet());
+            criteria.andIdIn(Lists.newArrayList(pids));
+        }
         return categoryMapper.selectByExample(example);
     }
 
     public List<LitemallCategory> queryByPid(Integer pid) {
+        return queryByPid(pid, true);
+    }
+
+    public List<LitemallCategory> queryByPid(Integer pid, boolean includeEmptyGoods) {
         LitemallCategoryExample example = new LitemallCategoryExample();
-        example.or().andPidEqualTo(pid).andDeletedEqualTo(false);
+        LitemallCategoryExample.Criteria criteria = example.or().andPidEqualTo(pid).andDeletedEqualTo(false);
+        if (!includeEmptyGoods) {
+            List<LitemallGoods> litemallGoods = goodsService.querySelective(new LitemallGoods(), LitemallGoods.Column.categoryId);
+            Set<Integer> categoryIds = litemallGoods.stream().map(LitemallGoods::getCategoryId).collect(Collectors.toSet());
+            criteria.andIdIn(Lists.newArrayList(categoryIds));
+        }
         return categoryMapper.selectByExample(example);
     }
 
@@ -88,9 +123,18 @@ public class LitemallCategoryService {
         categoryMapper.insertSelective(category);
     }
 
-    public List<LitemallCategory> queryChannel() {
+    public List<LitemallCategory> queryChannel(boolean includeEmptyGoods) {
         LitemallCategoryExample example = new LitemallCategoryExample();
-        example.or().andLevelEqualTo("L1").andDeletedEqualTo(false);
+        LitemallCategoryExample.Criteria criteria = example.or().andLevelEqualTo("L1").andDeletedEqualTo(false);
+        if (!includeEmptyGoods) {
+            List<LitemallGoods> litemallGoods = goodsService.querySelective(new LitemallGoods(), LitemallGoods.Column.categoryId);
+            Set<Integer> categoryIds = litemallGoods.stream().map(LitemallGoods::getCategoryId).collect(Collectors.toSet());
+            LitemallCategoryExample l2Example = new LitemallCategoryExample();
+            l2Example.createCriteria().andIdIn(Lists.newArrayList(categoryIds));
+            List<LitemallCategory> categories = categoryMapper.selectByExampleSelective(l2Example, LitemallCategory.Column.pid);
+            Set<Integer> pids = categories.stream().map(LitemallCategory::getPid).collect(Collectors.toSet());
+            criteria.andIdIn(Lists.newArrayList(pids));
+        }
         return categoryMapper.selectByExampleSelective(example, CHANNEL);
     }
 }

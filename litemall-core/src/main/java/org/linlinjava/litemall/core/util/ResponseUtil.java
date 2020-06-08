@@ -140,5 +140,9 @@ public class ResponseUtil {
     public static Object unauthz() {
         return fail(506, "无操作权限");
     }
+
+    public static Object agentError() {
+        return fail(507, "分销模式下获取代理商错误");
+    }
 }
 

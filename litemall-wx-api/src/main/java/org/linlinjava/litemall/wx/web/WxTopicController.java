@@ -7,6 +7,7 @@ import org.linlinjava.litemall.core.validator.Order;
 import org.linlinjava.litemall.core.validator.Sort;
 import org.linlinjava.litemall.db.domain.LitemallGoods;
 import org.linlinjava.litemall.db.domain.LitemallTopic;
+import org.linlinjava.litemall.db.service.GoodsAgentService;
 import org.linlinjava.litemall.db.service.LitemallGoodsService;
 import org.linlinjava.litemall.db.service.LitemallTopicService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,8 @@ public class WxTopicController {
     private LitemallTopicService topicService;
     @Autowired
     private LitemallGoodsService goodsService;
+    @Autowired
+    private GoodsAgentService goodsAgentService;
 
     /**
      * 专题列表
@@ -62,10 +65,19 @@ public class WxTopicController {
     public Object detail(@NotNull Integer id) {
         LitemallTopic topic = topicService.findById(id);
         List<LitemallGoods> goods = new ArrayList<>();
+        List<Integer> goodsIds = goodsAgentService.getGoodsIds();
         for (Integer i : topic.getGoods()) {
-            LitemallGoods good = goodsService.findByIdVO(i);
-            if (null != good)
-                goods.add(good);
+            if (goodsIds.size() > 0) {
+                if (goodsIds.contains(i)) {
+                    LitemallGoods good = goodsService.findByIdVO(i);
+                    if (null != good)
+                        goods.add(good);
+                }
+            } else {
+                LitemallGoods good = goodsService.findByIdVO(i);
+                if (null != good)
+                    goods.add(good);
+            }
         }
 
         Map<String, Object> entity = new HashMap<String, Object>();

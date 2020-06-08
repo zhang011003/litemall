@@ -6,6 +6,7 @@ import org.linlinjava.litemall.db.dao.LitemallGoodsMapper;
 import org.linlinjava.litemall.db.domain.LitemallGoods;
 import org.linlinjava.litemall.db.domain.LitemallGoods.Column;
 import org.linlinjava.litemall.db.domain.LitemallGoodsExample;
+import org.linlinjava.litemall.db.util.QueryUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -20,6 +21,8 @@ public class LitemallGoodsService {
     Column[] columns = new Column[]{Column.id, Column.name, Column.brief, Column.picUrl, Column.isHot, Column.isNew, Column.counterPrice, Column.retailPrice};
     @Resource
     private LitemallGoodsMapper goodsMapper;
+    @Resource
+    private GoodsAgentService goodsAgentService;
 
     /**
      * 获取热卖商品
@@ -30,7 +33,11 @@ public class LitemallGoodsService {
      */
     public List<LitemallGoods> queryByHot(int offset, int limit) {
         LitemallGoodsExample example = new LitemallGoodsExample();
-        example.or().andIsHotEqualTo(true).andIsOnSaleEqualTo(true).andDeletedEqualTo(false);
+        LitemallGoodsExample.Criteria criteria = example.or().andIsHotEqualTo(true).andIsOnSaleEqualTo(true).andDeletedEqualTo(false);
+        List<Integer> goodsIds = goodsAgentService.getGoodsIds();
+        if (goodsIds.size() > 0) {
+            criteria.andIdIn(goodsIds);
+        }
         example.setOrderByClause("add_time desc");
         PageHelper.startPage(offset, limit);
 
@@ -46,7 +53,11 @@ public class LitemallGoodsService {
      */
     public List<LitemallGoods> queryByNew(int offset, int limit) {
         LitemallGoodsExample example = new LitemallGoodsExample();
-        example.or().andIsNewEqualTo(true).andIsOnSaleEqualTo(true).andDeletedEqualTo(false);
+        LitemallGoodsExample.Criteria criteria = example.or().andIsNewEqualTo(true).andIsOnSaleEqualTo(true).andDeletedEqualTo(false);
+        List<Integer> goodsIds = goodsAgentService.getGoodsIds();
+        if (goodsIds.size() > 0) {
+            criteria.andIdIn(goodsIds);
+        }
         example.setOrderByClause("add_time desc");
         PageHelper.startPage(offset, limit);
 
@@ -122,9 +133,12 @@ public class LitemallGoodsService {
         if (!StringUtils.isEmpty(sort) && !StringUtils.isEmpty(order)) {
             example.setOrderByClause(sort + " " + order);
         }
-
+        List<Integer> goodsIds = goodsAgentService.getGoodsIds();
+        if (goodsIds.size() > 0) {
+            criteria1.andIdIn(goodsIds);
+            criteria2.andIdIn(goodsIds);
+        }
         PageHelper.startPage(offset, limit);
-
         return goodsMapper.selectByExampleSelective(example, columns);
     }
 
@@ -253,6 +267,12 @@ public class LitemallGoodsService {
         criteria1.andDeletedEqualTo(false);
         criteria2.andDeletedEqualTo(false);
 
+        List<Integer> goodsIds = goodsAgentService.getGoodsIds();
+        if (goodsIds.size() > 0) {
+            criteria1.andIdIn(goodsIds);
+            criteria2.andIdIn(goodsIds);
+        }
+
         List<LitemallGoods> goodsList = goodsMapper.selectByExampleSelective(example, Column.categoryId);
         List<Integer> cats = new ArrayList<Integer>();
         for (LitemallGoods goods : goodsList) {
@@ -270,6 +290,18 @@ public class LitemallGoodsService {
     public List<LitemallGoods> queryByIds(Integer[] ids) {
         LitemallGoodsExample example = new LitemallGoodsExample();
         example.or().andIdIn(Arrays.asList(ids)).andIsOnSaleEqualTo(true).andDeletedEqualTo(false);
+        return goodsMapper.selectByExampleSelective(example, columns);
+    }
+
+    public List<LitemallGoods> querySelective(LitemallGoods goods, LitemallGoods.Column... columns) {
+        LitemallGoodsExample example = QueryUtil.constructExampleInstance(goods, LitemallGoodsExample.class);
+
+        // 如果没有按照id查，则指定id查询
+        if (goods.getId() == null) {
+            List<Integer> goodsIds = goodsAgentService.getGoodsIds();
+            LitemallGoodsExample.Criteria criteria = example.getOredCriteria().get(0);
+            criteria.andIdIn(goodsIds);
+        }
         return goodsMapper.selectByExampleSelective(example, columns);
     }
 }

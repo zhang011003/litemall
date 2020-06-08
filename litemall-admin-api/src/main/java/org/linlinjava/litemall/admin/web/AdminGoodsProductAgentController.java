@@ -38,33 +38,8 @@ public class AdminGoodsProductAgentController {
     @Autowired
     private LitemallGoodsProductService goodsProductService;
 
-//    private LitemallGoodsProductAgentService goodsProductAgentService;
-
     @Autowired
     private AdminGoodsProductAgentService goodsProductAgentService;
-//    @RequiresPermissions("admin:goodsproductagent:list")
-//    @RequiresPermissionsDesc(menu = {"商品管理", "商品管理"}, button = "代理商查询")
-//    @GetMapping("list")
-//    public Object list(@AdminLoginUser Integer currentUserId,
-//                     @RequestParam(defaultValue = "1") Integer page,
-//                     @RequestParam(defaultValue = "10") Integer limit,
-//                     @Sort @RequestParam(defaultValue = "add_time") String sort,
-//                     @Order @RequestParam(defaultValue = "desc") String order) {
-//
-//        List<LitemallGoodsProductAgent> agentList = goodsProductAgentService.list(currentUserId, page, limit, sort, order);
-//        List<GoodsProductAgentVo> agentVos = Lists.newArrayListWithCapacity(agentList.size());
-//        List<Integer> gpIds = agentList.stream().map(LitemallGoodsProductAgent::getGoodsProductId).collect(Collectors.toList());
-//        Map<Integer, LitemallGoodsProduct> goodsProductMap = goodsProductService.findByIds(gpIds).stream()
-//                .collect(Collectors.toMap(LitemallGoodsProduct::getId, Function.identity()));
-//
-//        agentList.forEach(agent -> {
-//            GoodsProductAgentVo agentVo = new GoodsProductAgentVo();
-//            agentVo.setAgent(agent);
-//            agentVo.setGoodsProduct(goodsProductMap.get(agent.getGoodsProductId()));
-//            agentVos.add(agentVo);
-//        });
-//        return ResponseUtil.ok(agentVos);
-//    }
 
     @RequiresPermissions("admin:goodsproductagent:dispatch")
     @RequiresPermissionsDesc(menu = {"商品管理", "商品管理"}, button = "派货")

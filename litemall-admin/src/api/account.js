@@ -22,3 +22,26 @@ export function accountHistoryList(query) {
     params: query
   })
 }
+
+export function profitList() {
+  return request({
+    url: '/profit',
+    method: 'get'
+  })
+}
+
+export function profitHistoryList(query) {
+  return request({
+    url: '/profithistory/list',
+    method: 'get',
+    params: query
+  })
+}
+
+export function cashOut(data) {
+  return request({
+    url: '/profit/cashout',
+    method: 'post',
+    data
+  })
+}

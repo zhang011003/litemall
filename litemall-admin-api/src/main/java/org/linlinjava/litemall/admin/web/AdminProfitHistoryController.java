@@ -4,12 +4,9 @@ import org.linlinjava.litemall.admin.annotation.annotation.AdminLoginUser;
 import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.core.validator.Order;
 import org.linlinjava.litemall.core.validator.Sort;
-import org.linlinjava.litemall.db.domain.LitemallAccount;
 import org.linlinjava.litemall.db.domain.LitemallAccountHistory;
 import org.linlinjava.litemall.db.service.LitemallAccountHistoryService;
 import org.linlinjava.litemall.db.service.LitemallAccountService;
-import org.linlinjava.litemall.db.service.LitemallAdminService;
-import org.linlinjava.litemall.db.service.LitemallNoticeAdminService;
 import org.linlinjava.litemall.db.util.AccountUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
@@ -22,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/admin/accounthistory")
+@RequestMapping("/admin/profithistory")
 @Validated
-public class AdminAccountHistoryController {
+public class AdminProfitHistoryController {
 
     @Autowired
     private LitemallAccountService accountService;
@@ -39,7 +36,7 @@ public class AdminAccountHistoryController {
                        @Order @RequestParam(defaultValue = "desc") String order) {
         LitemallAccountHistory accountHistory = new LitemallAccountHistory();
         accountHistory.setAdminId(currentUserId);
-        accountHistory.setAccountType(AccountUtil.AccountType.ACCOUNT.getAccountType());
+        accountHistory.setAccountType(AccountUtil.AccountType.PROFIT.getAccountType());
         try {
             accountHistory.setType(AccountUtil.Type.getType(type).getType());
         } catch (Exception e) {

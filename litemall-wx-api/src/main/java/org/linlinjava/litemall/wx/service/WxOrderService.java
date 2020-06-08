@@ -9,6 +9,7 @@ import com.github.binarywang.wxpay.bean.result.BaseWxPayResult;
 import com.github.binarywang.wxpay.constant.WxPayConstants;
 import com.github.binarywang.wxpay.exception.WxPayException;
 import com.github.binarywang.wxpay.service.WxPayService;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.logging.Log;
@@ -27,10 +28,7 @@ import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.core.validator.Order;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
-import org.linlinjava.litemall.db.util.CouponUserConstant;
-import org.linlinjava.litemall.db.util.GrouponConstant;
-import org.linlinjava.litemall.db.util.OrderHandleOption;
-import org.linlinjava.litemall.db.util.OrderUtil;
+import org.linlinjava.litemall.db.util.*;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaCloseResponse;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaPayNotifyRequest;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaPayResponse;
@@ -46,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+import sun.management.Agent;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -130,6 +129,12 @@ public class WxOrderService {
 
     @Autowired(required = false)
     private LeShuaService leShuaService;
+    @Autowired
+    private LitemallAccountService accountService;
+    @Autowired
+    private GoodsAgentService goodsAgentService;
+    @Autowired
+    private LitemallAccountHistoryService accountHistoryService;
     /**
      * 订单列表
      *
@@ -410,6 +415,7 @@ public class WxOrderService {
             order.setGrouponPrice(new BigDecimal(0));    //  团购价格
         }
 
+        order.setAdminId(AgentHolder.getAgent().getId());
         // 添加订单表项
         orderService.add(order);
         orderId = order.getId();
@@ -1017,6 +1023,7 @@ public class WxOrderService {
      * @param body   订单信息，{ orderId：xxx }
      * @return 订单操作结果
      */
+    @Transactional
     public Object confirm(Integer userId, String body) {
         if (userId == null) {
             return ResponseUtil.unlogin();
@@ -1047,6 +1054,34 @@ public class WxOrderService {
         if (orderService.updateWithOptimisticLocker(order) == 0) {
             return ResponseUtil.updatedDateExpired();
         }
+
+        // 分销的情况
+        if (order.getAdminId() != null) {
+            LitemallAccount account = accountService.findByAdminIdAccountSelective(order.getAdminId(),
+                    AccountUtil.AccountType.PROFIT,
+                    LitemallAccount.Column.balance);
+
+            // 增加收益历史
+            LitemallAccountHistory accountHistory = new LitemallAccountHistory();
+            accountHistory.setAccountType(AccountUtil.AccountType.PROFIT.getAccountType());
+            accountHistory.setType(AccountUtil.Type.INCOME.getType());
+            accountHistory.setAdminId(order.getAdminId());
+            accountHistory.setDeleted(false);
+            accountHistory.setMoney(order.getActualPrice());
+            accountHistory.setBalance(account.getBalance().add(order.getActualPrice()));
+            accountHistory.setDetail(String.format("用户确认订单收货完成, 收益到账。订单编号：%s, 订单支付金额：%s, 支付时间：%s",
+                    order.getOrderSn(),
+                    order.getActualPrice(),
+                    order.getPayTime()));
+            accountHistory.setAddTime(LocalDateTime.now());
+            accountHistory.setUpdateTime(LocalDateTime.now());
+            accountHistoryService.insertHistories(Lists.newArrayList(accountHistory));
+
+            // 增加收益
+            accountService.updateAccount(order.getAdminId(),
+                    AccountUtil.AccountType.PROFIT, order.getActualPrice(), true);
+        }
+
         return ResponseUtil.ok();
     }
 

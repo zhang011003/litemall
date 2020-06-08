@@ -1,10 +1,12 @@
 package org.linlinjava.litemall.admin.job;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.linlinjava.litemall.core.system.SystemConfig;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
+import org.linlinjava.litemall.db.util.AccountUtil;
 import org.linlinjava.litemall.db.util.OrderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -31,6 +33,10 @@ public class OrderJob {
     private LitemallGrouponService grouponService;
     @Autowired
     private LitemallGrouponRulesService rulesService;
+    @Autowired
+    private LitemallAccountService accountService;
+    @Autowired
+    private LitemallAccountHistoryService accountHistoryService;
 
     /**
      * 自动确认订单
@@ -42,6 +48,7 @@ public class OrderJob {
      * 注意，因为是相隔一天检查，因此导致订单真正超时时间是 [LITEMALL_ORDER_UNCONFIRM, 1 + LITEMALL_ORDER_UNCONFIRM]
      */
     @Scheduled(cron = "0 0 3 * * ?")
+    @Transactional
     public void checkOrderUnconfirm() {
         logger.info("系统开启定时任务检查订单是否已经超期自动确认收货");
 
@@ -53,6 +60,33 @@ public class OrderJob {
             order.setConfirmTime(LocalDateTime.now());
             if (orderService.updateWithOptimisticLocker(order) == 0) {
                 logger.info("订单 ID=" + order.getId() + " 数据已经更新，放弃自动确认收货");
+
+                // 分销的情况
+                if (order.getAdminId() != null) {
+                    LitemallAccount account = accountService.findByAdminIdAccountSelective(order.getAdminId(),
+                            AccountUtil.AccountType.PROFIT,
+                            LitemallAccount.Column.balance);
+
+                    // 增加收益历史
+                    LitemallAccountHistory accountHistory = new LitemallAccountHistory();
+                    accountHistory.setAccountType(AccountUtil.AccountType.PROFIT.getAccountType());
+                    accountHistory.setType(AccountUtil.Type.INCOME.getType());
+                    accountHistory.setAdminId(order.getAdminId());
+                    accountHistory.setDeleted(false);
+                    accountHistory.setMoney(order.getActualPrice());
+                    accountHistory.setBalance(account.getBalance().add(order.getActualPrice()));
+                    accountHistory.setDetail(String.format("自动确认订单收货完成，收益到账。订单编号：%s, 订单支付金额：%s, 支付时间：%s",
+                            order.getOrderSn(),
+                            order.getActualPrice(),
+                            order.getPayTime()));
+                    accountHistory.setAddTime(LocalDateTime.now());
+                    accountHistory.setUpdateTime(LocalDateTime.now());
+                    accountHistoryService.insertHistories(Lists.newArrayList(accountHistory));
+
+                    // 增加收益
+                    accountService.updateAccount(order.getAdminId(),
+                            AccountUtil.AccountType.PROFIT, order.getActualPrice(), true);
+                }
             } else {
                 logger.info("订单 ID=" + order.getId() + " 已经超期自动确认收货");
             }

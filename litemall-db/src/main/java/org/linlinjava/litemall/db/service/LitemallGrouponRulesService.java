@@ -25,6 +25,9 @@ public class LitemallGrouponRulesService {
     private LitemallGoodsMapper goodsMapper;
     private LitemallGoods.Column[] goodsColumns = new LitemallGoods.Column[]{LitemallGoods.Column.id, LitemallGoods.Column.name, LitemallGoods.Column.brief, LitemallGoods.Column.picUrl, LitemallGoods.Column.counterPrice, LitemallGoods.Column.retailPrice};
 
+    @Resource
+    private GoodsAgentService goodsAgentService;
+
     public int createRules(LitemallGrouponRules rules) {
         rules.setAddTime(LocalDateTime.now());
         rules.setUpdateTime(LocalDateTime.now());
@@ -78,7 +81,11 @@ public class LitemallGrouponRulesService {
 
     public List<LitemallGrouponRules> queryList(Integer page, Integer limit, String sort, String order) {
         LitemallGrouponRulesExample example = new LitemallGrouponRulesExample();
-        example.or().andStatusEqualTo(GrouponConstant.RULE_STATUS_ON).andDeletedEqualTo(false);
+        LitemallGrouponRulesExample.Criteria criteria = example.or().andStatusEqualTo(GrouponConstant.RULE_STATUS_ON).andDeletedEqualTo(false);
+        List<Integer> goodsIds = goodsAgentService.getGoodsIds();
+        if (goodsIds.size() > 0) {
+            criteria.andGoodsIdIn(goodsIds);
+        }
         example.setOrderByClause(sort + " " + order);
         PageHelper.startPage(page, limit);
         return mapper.selectByExample(example);

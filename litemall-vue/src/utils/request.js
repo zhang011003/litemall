@@ -16,6 +16,11 @@ service.interceptors.request.use(
         'Authorization'
       ) || ''}`;
     }
+
+    // 增加agent的header
+    if (!config.headers['Agent']) {
+        config.headers['Agent'] = `${window.location.pathname.substring(1)}`;
+    }
     return config;
   },
   err => Promise.reject(err)
@@ -42,6 +47,9 @@ service.interceptors.response.use(
     } if (res.errno === 402) {
       Toast.fail('参数值不对');
       return Promise.reject('error')
+    } else if (res.errno === 507) {
+        window.location = '#/error/0'
+        return Promise.reject('error')
     } else if (res.errno !== 0) {
       // 非5xx的错误属于业务错误，留给具体页面处理
       return Promise.reject(response)

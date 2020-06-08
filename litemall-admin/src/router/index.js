@@ -447,6 +447,15 @@ export const asyncRouterMap = [
         }
       },
       {
+        path: 'profit',
+        component: () => import('@/views/sys/profit'),
+        name: 'profit',
+        meta: {
+          title: '利润管理',
+          noCache: true
+        }
+      },
+      {
         path: 'os',
         component: () => import('@/views/sys/os'),
         name: 'os',

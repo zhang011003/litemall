@@ -5,6 +5,7 @@ import org.linlinjava.litemall.db.dao.LitemallAccountHistoryMapper;
 import org.linlinjava.litemall.db.domain.LitemallAccount;
 import org.linlinjava.litemall.db.domain.LitemallAccountHistory;
 import org.linlinjava.litemall.db.domain.LitemallAccountHistoryExample;
+import org.linlinjava.litemall.db.util.AccountUtil;
 import org.linlinjava.litemall.db.util.QueryUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -78,10 +79,24 @@ public class LitemallAccountHistoryService {
         accountHistoryMapper.batchInsert(historyList);
     }
 
-    public LitemallAccountHistory findLatestAccountHistory(Integer adminId, LitemallAccountHistory.Column... columns) {
+    /**
+     * 查找最近的账号历史记录
+     * @param adminId
+     * @param accountType
+     * @param accountStatus
+     * @param columns
+     * @return
+     */
+    public LitemallAccountHistory findLatestAccountHistory(Integer adminId,
+                                                           AccountUtil.AccountType accountType,
+                                                           AccountUtil.AccountStatus accountStatus,
+                                                           LitemallAccountHistory.Column... columns) {
         LitemallAccountHistory accountHistory = new LitemallAccountHistory();
         accountHistory.setAdminId(adminId);
-
+        accountHistory.setAccountType(accountType.getAccountType());
+        if (accountStatus != null) {
+            accountHistory.setAccountStatus(accountStatus.getAccountStatus());
+        }
         List<LitemallAccountHistory> histories = findByAccountHistorySelective(accountHistory, 1, 1, "add_time", "desc", columns);
         if (histories.size() > 0) {
             return histories.get(0);

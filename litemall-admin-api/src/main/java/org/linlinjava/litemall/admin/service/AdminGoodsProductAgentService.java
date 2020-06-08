@@ -3,13 +3,12 @@ package org.linlinjava.litemall.admin.service;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.swagger.models.auth.In;
 import org.apache.shiro.SecurityUtils;
-import org.linlinjava.litemall.admin.dto.Goods;
 import org.linlinjava.litemall.admin.dto.GoodsProductAgent;
 import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
+import org.linlinjava.litemall.db.util.AccountUtil;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -112,7 +111,7 @@ public class AdminGoodsProductAgentService {
             // 派发商品总价
             BigDecimal sum = entry.getValue().stream().map(agent -> agent.getDispatchPrice().multiply(new BigDecimal(agent.getDispatchNumber())))
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal balance = accountService.findByAdminIdSelective(entry.getKey(), LitemallAccount.Column.balance).getBalance();
+            BigDecimal balance = accountService.findByAdminIdAccountSelective(entry.getKey(), AccountUtil.AccountType.ACCOUNT, LitemallAccount.Column.balance).getBalance();
             if (balance.compareTo(sum) < 0) {
                 String agentName = adminService.findById(entry.getKey()).getUsername();
                 return ResponseUtil.fail(2, agentName + "账户没有足够额度扣减，需要充值金额：" + sum.subtract(balance));
@@ -203,8 +202,8 @@ public class AdminGoodsProductAgentService {
             LitemallAccountHistory history = new LitemallAccountHistory();
             history.setType((byte) 2);
             history.setMoney(money);
-            LitemallAccount account = accountService.findByAdminIdSelective(
-                    goodsProductAgent.getAgentId(), LitemallAccount.Column.balance);
+            LitemallAccount account = accountService.findByAdminIdAccountSelective(
+                    goodsProductAgent.getAgentId(), AccountUtil.AccountType.ACCOUNT, LitemallAccount.Column.balance);
             history.setBalance(account.getBalance().subtract(money));
             history.setAdminId(goodsProductAgent.getAgentId());
 
@@ -220,8 +219,8 @@ public class AdminGoodsProductAgentService {
             history = new LitemallAccountHistory();
             history.setType((byte) 1);
             history.setMoney(money);
-            account = accountService.findByAdminIdSelective(
-                    litemallAdmin.getId(), LitemallAccount.Column.balance);
+            account = accountService.findByAdminIdAccountSelective(
+                    litemallAdmin.getId(), AccountUtil.AccountType.ACCOUNT, LitemallAccount.Column.balance);
             history.setBalance(account.getBalance().add(money));
             history.setAdminId(litemallAdmin.getId());
 
@@ -237,8 +236,8 @@ public class AdminGoodsProductAgentService {
             accountHistoryService.insertHistories(historyList, i);
 
             // 账户金额更新
-            accountService.updateAccount(goodsProductAgent.getAgentId(),  money, false);
-            accountService.updateAccount(litemallAdmin.getId(),  money, true);
+            accountService.updateAccount(goodsProductAgent.getAgentId(), AccountUtil.AccountType.ACCOUNT, money, false);
+            accountService.updateAccount(litemallAdmin.getId(), AccountUtil.AccountType.ACCOUNT, money, true);
         }
     }
 

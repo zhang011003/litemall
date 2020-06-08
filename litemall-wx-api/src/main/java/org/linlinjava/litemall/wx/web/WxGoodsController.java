@@ -214,11 +214,11 @@ public class WxGoodsController {
 
 		if (cur.getPid() == 0) {
 			parent = cur;
-			children = categoryService.queryByPid(cur.getId());
+			children = categoryService.queryByPid(cur.getId(), false);
 			cur = children.size() > 0 ? children.get(0) : cur;
 		} else {
 			parent = categoryService.findById(cur.getPid());
-			children = categoryService.queryByPid(cur.getPid());
+			children = categoryService.queryByPid(cur.getPid(), false);
 		}
 		Map<String, Object> data = new HashMap<>();
 		data.put("currentCategory", cur);

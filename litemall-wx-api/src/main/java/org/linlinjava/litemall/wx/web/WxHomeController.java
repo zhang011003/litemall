@@ -85,7 +85,7 @@ public class WxHomeController {
 
         Callable<List> bannerListCallable = () -> adService.queryIndex();
 
-        Callable<List> channelListCallable = () -> categoryService.queryChannel();
+        Callable<List> channelListCallable = () -> categoryService.queryChannel(false);
 
         Callable<List> couponListCallable;
         if(userId == null){

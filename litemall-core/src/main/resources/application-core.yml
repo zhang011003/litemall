@@ -1,4 +1,5 @@
 litemall:
+  goods-distribution: true
   leshua:
     url: https://paygate.leshuazf.com/
     merchant_id: 4014116132

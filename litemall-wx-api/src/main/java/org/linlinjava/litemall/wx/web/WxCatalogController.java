@@ -55,8 +55,8 @@ public class WxCatalogController {
     @GetMapping("index")
     public Object index(Integer id) {
 
-        // 所有一级分类目录
-        List<LitemallCategory> l1CatList = categoryService.queryL1();
+        // 所有一级分类目录(过滤掉没有的商品)
+        List<LitemallCategory> l1CatList = categoryService.queryL1(false);
 
         // 当前一级分类目录
         LitemallCategory currentCategory = null;
@@ -71,7 +71,7 @@ public class WxCatalogController {
         // 当前一级分类目录对应的二级分类目录
         List<LitemallCategory> currentSubCategory = null;
         if (null != currentCategory) {
-            currentSubCategory = categoryService.queryByPid(currentCategory.getId());
+            currentSubCategory = categoryService.queryByPid(currentCategory.getId(), false);
         }
 
         Map<String, Object> data = new HashMap<String, Object>();

@@ -30,7 +30,7 @@ public class LitemallGoodsProductAgentService {
         return litemallGoodsProductAgentMapper.selectByExample(example);
     }
 
-    public LitemallGoodsProductAgent queryByGPids(Integer gpid) {
+    public LitemallGoodsProductAgent queryByGPid(Integer gpid) {
         LitemallGoodsProductAgentExample example = new LitemallGoodsProductAgentExample();
         example.or().andGoodsProductIdEqualTo(gpid).andDeletedEqualTo(false);
         return litemallGoodsProductAgentMapper.selectOneByExample(example);
