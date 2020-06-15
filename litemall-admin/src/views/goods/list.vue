@@ -42,7 +42,13 @@
                 <el-table-column prop="price" label="货品售价" />
                 <!--TODO: 如何隐藏一列-->
                 <el-table-column prop="basePrice" label="基础价格" />
+                <el-table-column prop="dispatchPrice" label="派货价格" />
                 <el-table-column prop="number" label="货品数量" />
+                <el-table-column label="操作">
+                  <template slot-scope="scope">
+                    <el-button type="primary" size="mini" @click="showModifyPriceDialog(scope.row, scope.$index)">修改</el-button>
+                  </template>
+                </el-table-column>
               </el-table>
             </el-form-item>
             <el-form-item label="关键字">
@@ -105,6 +111,12 @@
         </template>
       </el-table-column>
 
+      <el-table-column align="center" label="是否可见" prop="isOnSale">
+        <template slot-scope="scope">
+          <el-switch v-model="scope.row.extraInfo && !scope.row.extraInfo.isShow?false:true" active-color="#13ce66" @change="changeGoodsShow(scope.row)" />
+        </template>
+      </el-table-column>
+
       <el-table-column align="center" label="操作" width="220" class-name="small-padding fixed-width">
         <template slot-scope="scope">
           <el-button v-permission="['POST /admin/goods/update']" type="primary" size="mini" @click="handleUpdate(scope.row)">编辑</el-button>
@@ -161,8 +173,8 @@
         <el-form-item label="基础价" prop="basePrice">
           <span>{{ productForm.basePrice }}</span>
         </el-form-item>
-        <el-form-item label="派货价" prop="dispatchPrice">
-          <el-input v-model="productForm.dispatchPrice" type="number" :max="productForm.price" min="0" />
+        <el-form-item label="派货价" prop="basePrice">
+          <span>{{ productForm.dispatchPrice }}</span>
         </el-form-item>
         <el-form-item label="货品数量" prop="number">
           <span>{{ productForm.number }}</span>
@@ -180,7 +192,7 @@
               <el-option
                 v-for="item in agents"
                 :key="item.id"
-                :label="item.username"
+                :label="item.nickname"
                 :value="item"
               />
             </el-select>
@@ -194,6 +206,31 @@
       </div>
     </el-dialog>
 
+    <el-dialog :visible.sync="modifyPriceDlgVisible" title="修改" width="800">
+      <el-form ref="priceDataForm" :model="priceData" status-icon label-position="left" label-width="100px">
+        <el-form-item label="货品规格">
+          <el-tag v-for="tag in priceData.specifications" :key="tag">
+            {{ tag }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="货品售价">
+          <el-input v-model="priceData.price" type="number" min="0" />
+        </el-form-item>
+        <el-form-item label="基础价">
+          <span>{{ priceData.basePrice }}</span>
+        </el-form-item>
+        <el-form-item label="派货价">
+          <el-input v-model="priceData.dispatchPrice" type="number" min="0" />
+        </el-form-item>
+        <el-form-item v-permission="['POST /admin/goods/update']" label="货品数量">
+          <el-input v-model="priceData.number" type="number" min="0" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="modifyPriceDlgVisible = false">取消</el-button>
+        <el-button type="primary" @click="handlePriceDataEdit">确定</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -219,7 +256,7 @@
 </style>
 
 <script>
-import { detailGoods, listGoods, deleteGoods } from '@/api/goods'
+import { detailGoods, listGoods, deleteGoods, updatePrice, changeShow } from '@/api/goods'
 import { dispatchGoods } from '@/api/goodsProductAgent'
 import { listAdminOfMine } from '@/api/admin'
 import BackToTop from '@/components/BackToTop'
@@ -253,6 +290,7 @@ export default {
       }
     }
     return {
+      expandedRows: undefined,
       list: [],
       total: 0,
       listLoading: true,
@@ -300,7 +338,16 @@ export default {
         sort: 'add_time',
         order: 'desc'
       },
-      selectedAgent: {}
+      selectedAgent: {},
+      modifyPriceDlgVisible: false,
+      priceData: {
+        specifications: [],
+        price: 0,
+        basePrice: 0,
+        dispatchPrice: 0,
+        number: 0
+      },
+      priceDataIndex: 0
     }
   },
   created() {
@@ -309,6 +356,7 @@ export default {
   },
   methods: {
     expandChange: function(row, expandedRows) {
+      this.expandedRows = expandedRows
       this.initProducts(row)
     },
     getList() {
@@ -352,17 +400,23 @@ export default {
       this.detailDialogVisible = true
     },
     handleDelete(row) {
-      deleteGoods(row).then(response => {
-        this.$notify.success({
-          title: '成功',
-          message: '删除成功'
-        })
-        const index = this.list.indexOf(row)
-        this.list.splice(index, 1)
-      }).catch(response => {
-        this.$notify.error({
-          title: '失败',
-          message: response.data.errmsg
+      MessageBox.confirm('是否确定删除？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        deleteGoods(row).then(response => {
+          this.$notify.success({
+            title: '成功',
+            message: '删除成功'
+          })
+          const index = this.list.indexOf(row)
+          this.list.splice(index, 1)
+        }).catch(response => {
+          this.$notify.error({
+            title: '失败',
+            message: response.data.errmsg
+          })
         })
       })
     },
@@ -378,6 +432,7 @@ export default {
     handleDispatchGoods(row) {
       this.initProducts(row)
       this.dispatchDialogVisible = true
+      this.getList()
     },
     initProducts(row) {
       if (!row.products) {
@@ -433,7 +488,7 @@ export default {
         if (valid) {
           this.editDispatchDialogVisible = false
           this.productForm.agentId = this.selectedAgent.id
-          this.productForm.agentName = this.selectedAgent.username
+          this.productForm.agentName = this.selectedAgent.nickname
           this.$set(this.productsInTable, this.rowIndex, this.productForm)
         } else {
           return
@@ -450,8 +505,47 @@ export default {
       if (!isValid) {
         this.formIsValid = false
       }
+    },
+    showModifyPriceDialog(row, index) {
+      this.priceData = JSON.parse(JSON.stringify(row))
+      this.priceDataIndex = index
+      this.modifyPriceDlgVisible = true
+    },
+    handlePriceDataEdit() {
+      for (const expandedRow of this.expandedRows) {
+        if (expandedRow.id === this.priceData.goodsId) {
+          updatePrice(this.priceData).then(res => {
+            this.modifyPriceDlgVisible = false
+            this.$notify.success({
+              title: '成功',
+              message: '操作成功'
+            })
+          })
+          this.getList()
+        }
+      }
+    },
+    changeGoodsShow(row) {
+      let show
+      if (row.extraInfo && !row.extraInfo.isShow) {
+        show = true
+      } else {
+        show = false
+      }
+      MessageBox.confirm('是否确定修改？', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        changeShow(row.id, show).then(() => {
+          this.$notify.success({
+            title: '成功',
+            message: '操作成功'
+          })
+          this.getList()
+        })
+      })
     }
-
   }
 }
 </script>

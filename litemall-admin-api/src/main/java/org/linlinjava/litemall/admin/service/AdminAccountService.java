@@ -48,7 +48,7 @@ public class AdminAccountService {
         currentUserAccountHistory.setType(AccountUtil.Type.OUTGOINGS.getType());
         currentUserAccountHistory.setAdminId(litemallAdmin.getId());
         currentUserAccountHistory.setAccountType(AccountUtil.AccountType.ACCOUNT.getAccountType());
-        currentUserAccountHistory.setDetail(String.format("转账给%s", toUser.getUsername()));
+        currentUserAccountHistory.setDetail(String.format("转账给%s", toUser.getNickname()));
         currentUserAccountHistory.setMoney(transfer.getMoney());
 
         currentUserAccountHistory.setBalance(currentAccount.getBalance().subtract(transfer.getMoney()));
@@ -64,7 +64,7 @@ public class AdminAccountService {
         toUserAccountHistory.setMoney(transfer.getMoney());
 
         toUserAccountHistory.setBalance(toAccount.getBalance().add(transfer.getMoney()));
-        toUserAccountHistory.setDetail(String.format("收到%s的转账", litemallAdmin.getUsername()));
+        toUserAccountHistory.setDetail(String.format("收到%s的转账", litemallAdmin.getNickname()));
         toUserAccountHistory.setAddTime(LocalDateTime.now());
         toUserAccountHistory.setUpdateTime(LocalDateTime.now());
         toUserAccountHistory.setDeleted(false);
@@ -105,7 +105,7 @@ public class AdminAccountService {
         currentUserAccountHistory.setType(AccountUtil.Type.OUTGOINGS.getType());
         currentUserAccountHistory.setAdminId(litemallAdmin.getId());
         currentUserAccountHistory.setAccountType(AccountUtil.AccountType.PROFIT.getAccountType());
-        currentUserAccountHistory.setDetail(String.format("%s提现", litemallAdmin.getUsername()));
+        currentUserAccountHistory.setDetail(String.format("%s提现", litemallAdmin.getNickname()));
         currentUserAccountHistory.setMoney(cashOut.getMoney());
 
         currentUserAccountHistory.setBalance(currentAccount.getBalance());

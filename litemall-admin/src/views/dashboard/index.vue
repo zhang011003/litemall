@@ -9,7 +9,7 @@
           </div>
           <div class="card-panel-description">
             <div class="card-panel-text">用户数量</div>
-            <count-to :start-val="0" :end-val="userTotal" :duration="2600" class="card-panel-num"/>
+            <count-to :start-val="0" :end-val="userTotal" :duration="2600" class="card-panel-num" />
           </div>
         </div>
       </el-col>
@@ -20,7 +20,7 @@
           </div>
           <div class="card-panel-description">
             <div class="card-panel-text">商品数量</div>
-            <count-to :start-val="0" :end-val="goodsTotal" :duration="3000" class="card-panel-num"/>
+            <count-to :start-val="0" :end-val="goodsTotal" :duration="3000" class="card-panel-num" />
           </div>
         </div>
       </el-col>
@@ -31,7 +31,7 @@
           </div>
           <div class="card-panel-description">
             <div class="card-panel-text">货品数量</div>
-            <count-to :start-val="0" :end-val="productTotal" :duration="3200" class="card-panel-num"/>
+            <count-to :start-val="0" :end-val="productTotal" :duration="3200" class="card-panel-num" />
           </div>
         </div>
       </el-col>
@@ -42,7 +42,27 @@
           </div>
           <div class="card-panel-description">
             <div class="card-panel-text">订单数量</div>
-            <count-to :start-val="0" :end-val="orderTotal" :duration="3600" class="card-panel-num"/>
+            <count-to :start-val="0" :end-val="orderTotal" :duration="3600" class="card-panel-num" />
+          </div>
+        </div>
+      </el-col>
+      <el-col :xs="12" :sm="12" :lg="15" class="card-panel-col">
+        <div class="card-panel">
+          <div class="card-panel-icon-wrapper icon-shoppingCard">
+            <svg-icon icon-class="shopping" class-name="card-panel-icon" />
+          </div>
+          <div class="card-panel-description">
+            <div class="card-panel-text">商城地址</div>
+            <div class="card-panel-text">
+              {{ mallUrl }}
+              <el-button
+                v-clipboard:copy="mallUrl"
+                v-clipboard:error="onError"
+                class="ml10"
+                type="success"
+                size="medium"
+              >复制</el-button>
+            </div>
           </div>
         </div>
       </el-col>
@@ -63,7 +83,8 @@ export default {
       userTotal: 0,
       goodsTotal: 0,
       productTotal: 0,
-      orderTotal: 0
+      orderTotal: 0,
+      mallUrl: undefined
     }
   },
   created() {
@@ -72,11 +93,15 @@ export default {
       this.goodsTotal = response.data.data.goodsTotal
       this.productTotal = response.data.data.productTotal
       this.orderTotal = response.data.data.orderTotal
+      this.mallUrl = response.data.data.mallUrl
     })
   },
   methods: {
     handleSetLineChartData(type) {
       this.$emit('handleSetLineChartData', type)
+    },
+    onError(e) {
+      alert('复制失败')
     }
   }
 }

@@ -198,8 +198,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column property="price" width="100" label="货品售价" />
-        <el-table-column property="number" width="100" label="货品数量" />
+        <el-table-column property="price" width="100" label="货品售价">
+          <template slot-scope="scope">
+            {{ scope.row.price }}
+          </template>
+        </el-table-column>
+        <el-table-column property="number" width="100" label="货品数量">
+          <template slot-scope="scope">
+            {{ scope.row.number }}
+          </template>
+        </el-table-column>
         <el-table-column property="url" width="100" label="货品图片">
           <template slot-scope="scope">
             <img v-if="scope.row.url" :src="scope.row.url" width="40">

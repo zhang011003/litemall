@@ -4,14 +4,8 @@ import org.apache.shiro.authc.AuthenticationToken;
 
 public class JWTToken implements AuthenticationToken {
     private String token;
-    private String userName;
-    public JWTToken(String userName, String token) {
-        this.userName = userName;
+    public JWTToken(String token) {
         this.token = token;
-    }
-
-    public String getUserName() {
-        return userName;
     }
 
     @Override

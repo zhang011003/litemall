@@ -46,3 +46,17 @@ export function listCatAndBrand() {
     method: 'get'
   })
 }
+export function updatePrice(data) {
+  return request({
+    url: '/goods/updatePrice',
+    method: 'post',
+    data
+  })
+}
+export function changeShow(id, isShow) {
+  return request({
+    url: '/goods/changeShow',
+    method: 'post',
+    params: { id, isShow }
+  })
+}

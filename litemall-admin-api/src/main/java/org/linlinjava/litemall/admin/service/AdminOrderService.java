@@ -4,20 +4,19 @@ import com.github.binarywang.wxpay.bean.request.WxPayRefundRequest;
 import com.github.binarywang.wxpay.bean.result.WxPayRefundResult;
 import com.github.binarywang.wxpay.exception.WxPayException;
 import com.github.binarywang.wxpay.service.WxPayService;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.linlinjava.litemall.admin.dto.Order;
 import org.linlinjava.litemall.admin.task.OrderRefundUnconfirmQueryTask;
 import org.linlinjava.litemall.core.notify.NotifyService;
 import org.linlinjava.litemall.core.notify.NotifyType;
 import org.linlinjava.litemall.core.task.TaskService;
 import org.linlinjava.litemall.core.util.JacksonUtil;
 import org.linlinjava.litemall.core.util.ResponseUtil;
-import org.linlinjava.litemall.db.domain.LitemallComment;
-import org.linlinjava.litemall.db.domain.LitemallOrder;
-import org.linlinjava.litemall.db.domain.LitemallOrderGoods;
-import org.linlinjava.litemall.db.domain.UserVo;
+import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
 import org.linlinjava.litemall.db.util.OrderUtil;
 import org.linlinjava.litemall.pay.bean.leshua.LeShuaRefundNotifyRequest;
@@ -26,6 +25,7 @@ import org.linlinjava.litemall.pay.bean.leshua.LeShuaRequest;
 import org.linlinjava.litemall.pay.properties.LeShuaProperties;
 import org.linlinjava.litemall.pay.service.LeShuaService;
 import org.linlinjava.litemall.pay.util.LeShuaUtil;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +36,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.linlinjava.litemall.admin.util.AdminResponseCode.*;
 
@@ -66,12 +68,22 @@ public class AdminOrderService {
     private LeShuaService leShuaService;
     @Autowired(required = false)
     private LeShuaProperties leShuaProperties;
-
+    @Autowired
+    private LitemallAdminIntegrationService adminIntegrationService;
     public Object list(Integer userId, String orderSn, LocalDateTime start, LocalDateTime end, List<Short> orderStatusArray,
                        Integer page, Integer limit, String sort, String order) {
         List<LitemallOrder> orderList = orderService.querySelective(userId, orderSn, start, end, orderStatusArray, page, limit,
                 sort, order);
-        return ResponseUtil.okList(orderList);
+        Set<Integer> adminIdSet = orderList.stream().map(LitemallOrder::getAdminId).collect(Collectors.toSet());
+        List<LitemallAdminIntegration> adminIntegrationList = adminIntegrationService.findByIds(Lists.newArrayList(adminIdSet));
+        Map<Integer, String> adminIdMap = adminIntegrationList.stream().collect(Collectors.toMap(LitemallAdminIntegration::getId, LitemallAdminIntegration::getNamePath));
+        List<Order> orderDtoList = orderList.stream().map(o -> {
+            Order orderDto = new Order();
+            BeanUtils.copyProperties(o, orderDto);
+            orderDto.setNamePath(adminIdMap.getOrDefault(o.getAdminId(), ""));
+            return orderDto;
+        }).collect(Collectors.toList());
+        return ResponseUtil.okList(orderDtoList);
     }
 
     public Object detail(Integer id) {
@@ -244,7 +256,7 @@ public class AdminOrderService {
         for (LitemallOrderGoods orderGoods : orderGoodsList) {
             Integer productId = orderGoods.getProductId();
             Short number = orderGoods.getNumber();
-            if (productService.addStock(productId, number) == 0) {
+            if (productService.addStock(productId, number, order.getAdminId()) == 0) {
                 throw new RuntimeException("商品货品库存增加失败");
             }
         }

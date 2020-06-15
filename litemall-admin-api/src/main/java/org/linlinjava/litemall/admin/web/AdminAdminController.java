@@ -7,7 +7,10 @@ import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.apache.shiro.subject.Subject;
 import org.linlinjava.litemall.admin.annotation.RequiresPermissionsDesc;
 import org.linlinjava.litemall.admin.annotation.annotation.AdminLoginUser;
+import org.linlinjava.litemall.admin.service.IntegrationService;
 import org.linlinjava.litemall.admin.service.LogHelper;
+import org.linlinjava.litemall.admin.util.Consts;
+import org.linlinjava.litemall.core.config.IntegrationProperties;
 import org.linlinjava.litemall.core.util.RegexUtil;
 import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.core.util.bcrypt.BCryptPasswordEncoder;
@@ -30,11 +33,14 @@ import static org.linlinjava.litemall.admin.util.AdminResponseCode.*;
 @Validated
 public class AdminAdminController {
     private final Log logger = LogFactory.getLog(AdminAdminController.class);
-
     @Autowired
     private LitemallAdminService adminService;
     @Autowired
+    private IntegrationService integrationService;
+    @Autowired
     private LogHelper logHelper;
+    @Autowired
+    private IntegrationProperties integrationProperties;
 
     @RequiresPermissions("admin:admin:list")
     @RequiresPermissionsDesc(menu = {"系统管理", "管理员管理"}, button = "查询")
@@ -50,11 +56,17 @@ public class AdminAdminController {
 
     @GetMapping("/listOfMine")
     public Object listOfMine(@AdminLoginUser Integer loginUserId,
-                       @RequestParam(defaultValue = "1") Integer page,
-                       @RequestParam(defaultValue = "10") Integer limit,
-                       @Sort @RequestParam(defaultValue = "add_time") String sort,
-                       @Order @RequestParam(defaultValue = "desc") String order) {
-        List<LitemallAdmin> adminList = adminService.querySelective(null, loginUserId, page, limit, sort, order);
+                             @RequestParam(defaultValue = "1") Integer page,
+                             @RequestParam(defaultValue = "10") Integer limit,
+                             @Sort @RequestParam(defaultValue = "add_time") String sort,
+                             @Order @RequestParam(defaultValue = "desc") String order,
+                             @RequestHeader(Consts.HEADER_ADMIN_TOKEN)String token) {
+        List<LitemallAdmin> adminList;
+        if (integrationProperties.isEnable()) {
+            adminList = integrationService.listOfMine(loginUserId, page, limit, sort, order, token);
+        } else {
+            adminList = adminService.querySelective(null, loginUserId, page, limit, sort, order);
+        }
         return ResponseUtil.okList(adminList);
     }
 

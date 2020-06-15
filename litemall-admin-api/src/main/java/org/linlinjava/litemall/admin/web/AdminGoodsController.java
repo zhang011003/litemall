@@ -6,7 +6,9 @@ import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.linlinjava.litemall.admin.annotation.RequiresPermissionsDesc;
 import org.linlinjava.litemall.admin.dto.Goods;
 import org.linlinjava.litemall.admin.dto.GoodsAllinone;
+import org.linlinjava.litemall.admin.dto.GoodsProductPrice;
 import org.linlinjava.litemall.admin.service.AdminGoodsService;
+import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.core.validator.Order;
 import org.linlinjava.litemall.core.validator.Sort;
 import org.linlinjava.litemall.db.domain.LitemallGoods;
@@ -15,6 +17,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.constraints.NotNull;
+import java.util.List;
 
 @RestController
 @RequestMapping("/admin/goods")
@@ -28,9 +31,6 @@ public class AdminGoodsController {
     /**
      * 查询商品
      *
-     * @param goodsId
-     * @param goodsSn
-     * @param name
      * @param page
      * @param limit
      * @param sort
@@ -106,4 +106,15 @@ public class AdminGoodsController {
 
     }
 
+    @RequiresPermissions("admin:product:update")
+    @RequiresPermissionsDesc(menu = {"商品管理", "商品管理"}, button = "修改货品")
+    @PostMapping("/updatePrice")
+    public Object updatePrice(@RequestBody GoodsProductPrice goodsProductPrice) {
+        return adminGoodsService.updatePrice(goodsProductPrice);
+    }
+
+    @PostMapping("/changeShow")
+    public Object changeShow(@NotNull Integer id, Boolean isShow) {
+        return adminGoodsService.changeShow(id, isShow);
+    }
 }

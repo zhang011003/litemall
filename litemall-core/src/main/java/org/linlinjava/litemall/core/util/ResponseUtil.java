@@ -144,5 +144,9 @@ public class ResponseUtil {
     public static Object agentError() {
         return fail(507, "分销模式下获取代理商错误");
     }
+
+    public static Object otherError(String errorMsg) {
+        return fail(508, errorMsg);
+    }
 }
 

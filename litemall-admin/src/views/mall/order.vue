@@ -19,6 +19,7 @@
       <el-table-column align="center" min-width="100" label="订单编号" prop="orderSn" />
 
       <el-table-column align="center" label="用户ID" prop="userId" />
+      <el-table-column align="center" label="代理商层级" prop="namePath" />
 
       <el-table-column align="center" label="订单状态" prop="orderStatus">
         <template slot-scope="scope">
@@ -356,8 +357,8 @@ export default {
     handleDownload() {
       this.downloadLoading = true
       import('@/vendor/Export2Excel').then(excel => {
-        const tHeader = ['订单ID', '订单编号', '用户ID', '订单状态', '是否删除', '收货人', '收货联系电话', '收货地址']
-        const filterVal = ['id', 'orderSn', 'userId', 'orderStatus', 'isDelete', 'consignee', 'mobile', 'address']
+        const tHeader = ['订单ID', '订单编号', '用户ID', '代理商层级', '订单状态', '是否删除', '收货人', '收货联系电话', '收货地址']
+        const filterVal = ['id', 'orderSn', 'userId', 'namePath', 'orderStatus', 'isDelete', 'consignee', 'mobile', 'address']
         excel.export_json_to_excel2(tHeader, this.list, filterVal, '订单信息')
         this.downloadLoading = false
       })

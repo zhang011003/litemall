@@ -9,12 +9,14 @@ import org.linlinjava.litemall.core.util.JacksonUtil;
 import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
+import org.linlinjava.litemall.db.util.AgentHolder;
 import org.linlinjava.litemall.wx.annotation.LoginUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.*;
 
 import static org.linlinjava.litemall.wx.util.WxResponseCode.GOODS_NO_STOCK;
@@ -45,6 +47,8 @@ public class WxCartController {
     private LitemallCouponUserService couponUserService;
     @Autowired
     private CouponVerifyService couponVerifyService;
+    @Autowired
+    private LitemallGoodsProductAgentService gpaService;
 
     /**
      * 用户购物车信息
@@ -209,6 +213,12 @@ public class WxCartController {
         }
 
         LitemallGoodsProduct product = productService.findById(productId);
+        List<LitemallGoodsProductAgent> gpaList = gpaService.queryByGPidAndAgentId(productId, AgentHolder.getAgent().getId());
+        if (gpaList.size() > 0) {
+            product.setPrice(gpaList.get(0).getPrice());
+            product.setNumber(gpaList.stream().map(LitemallGoodsProductAgent::getNumber).reduce(0, Integer::sum));
+        }
+
         //判断购物车中是否存在此规格商品
         LitemallCart existCart = cartService.queryExist(goodsId, productId, userId);
         if (existCart == null) {

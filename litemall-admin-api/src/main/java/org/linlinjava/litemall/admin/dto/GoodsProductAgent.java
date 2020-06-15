@@ -5,7 +5,6 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import java.math.BigDecimal;
-import java.util.Objects;
 
 @Data
 public class GoodsProductAgent {
@@ -13,10 +12,14 @@ public class GoodsProductAgent {
     private Integer goodsProductId;
     private BigDecimal price;
     @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private BigDecimal basePrice;
     private BigDecimal dispatchPrice;
     @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Integer number;
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
     private Integer dispatchNumber;
     private Integer agentId;
 }

@@ -79,7 +79,7 @@ public class JwtHelper {
 		
 		return null;
 	}
-	
+
 	private static Date getAfterDate(Date date, int year, int month, int day, int hour, int minute, int second){
 		if(date == null){
 			date = new Date();

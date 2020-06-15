@@ -1,6 +1,7 @@
 package org.linlinjava.litemall.wx.web;
 
 import com.github.pagehelper.PageInfo;
+import com.google.common.collect.Lists;
 import com.mysql.jdbc.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -10,6 +11,7 @@ import org.linlinjava.litemall.core.validator.Order;
 import org.linlinjava.litemall.core.validator.Sort;
 import org.linlinjava.litemall.db.domain.*;
 import org.linlinjava.litemall.db.service.*;
+import org.linlinjava.litemall.db.util.AgentHolder;
 import org.linlinjava.litemall.wx.annotation.LoginUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -19,10 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.constraints.NotNull;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.math.BigDecimal;
+import java.util.*;
 import java.util.concurrent.*;
 
 /**
@@ -79,6 +79,9 @@ public class WxGoodsController {
 
 	private static ThreadPoolExecutor executorService = new ThreadPoolExecutor(16, 16, 1000, TimeUnit.MILLISECONDS, WORK_QUEUE, HANDLER);
 
+	@Autowired
+	private LitemallGoodsProductAgentService gpaService;
+
 	/**
 	 * 商品详情
 	 * <p>
@@ -93,6 +96,10 @@ public class WxGoodsController {
 	public Object detail(@LoginUser Integer userId, @NotNull Integer id) {
 		// 商品信息
 		LitemallGoods info = goodsService.findById(id);
+
+		List<LitemallGoodsProductAgent> gpaList = gpaService.queryByGidAndAgentId(info.getId(), AgentHolder.getAgent().getId());
+		BigDecimal minPrice = gpaList.stream().map(LitemallGoodsProductAgent::getPrice).min(BigDecimal::compareTo).orElse(info.getRetailPrice());
+		info.setRetailPrice(minPrice);
 
 		// 商品属性
 		Callable<List> goodsAttributeListCallable = () -> goodsAttributeService.queryByGid(id);

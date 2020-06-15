@@ -2,7 +2,10 @@ package org.linlinjava.litemall.admin.web;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.shiro.SecurityUtils;
+import org.linlinjava.litemall.core.system.SystemConfig;
 import org.linlinjava.litemall.core.util.ResponseUtil;
+import org.linlinjava.litemall.db.domain.LitemallAdmin;
 import org.linlinjava.litemall.db.service.LitemallGoodsProductService;
 import org.linlinjava.litemall.db.service.LitemallGoodsService;
 import org.linlinjava.litemall.db.service.LitemallOrderService;
@@ -37,11 +40,21 @@ public class AdminDashbordController {
         int goodsTotal = goodsService.count();
         int productTotal = productService.count();
         int orderTotal = orderService.count();
-        Map<String, Integer> data = new HashMap<>();
+        Map<String, Object> data = new HashMap<>();
         data.put("userTotal", userTotal);
         data.put("goodsTotal", goodsTotal);
         data.put("productTotal", productTotal);
         data.put("orderTotal", orderTotal);
+        String domain = SystemConfig.getConfig(SystemConfig.LITEMALL_MALL_DOMAIN);
+        LitemallAdmin admin = (LitemallAdmin) SecurityUtils.getSubject().getPrincipal();
+        if (!domain.startsWith("http://")) {
+            domain = "http://" + domain;
+        }
+        if (!domain.endsWith("/")) {
+            domain += "/";
+        }
+        domain += admin.getUsername() + "/";
+        data.put("mallUrl", domain);
 
         return ResponseUtil.ok(data);
     }

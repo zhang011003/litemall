@@ -11,6 +11,9 @@ import org.linlinjava.litemall.core.validator.Sort;
 import org.linlinjava.litemall.db.domain.LitemallStorage;
 import org.linlinjava.litemall.db.service.LitemallStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -85,5 +88,24 @@ public class AdminStorageController {
         litemallStorageService.deleteByKey(key);
         storageService.delete(key);
         return ResponseUtil.ok();
+    }
+
+    @GetMapping("/fetch/{key:.+}")
+    public ResponseEntity<Resource> fetch(@PathVariable String key) {
+        LitemallStorage litemallStorage = litemallStorageService.findByKey(key);
+        if (key == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (key.contains("../")) {
+            return ResponseEntity.badRequest().build();
+        }
+        String type = litemallStorage.getType();
+        MediaType mediaType = MediaType.parseMediaType(type);
+
+        Resource file = storageService.loadAsResource(key);
+        if (file == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok().contentType(mediaType).body(file);
     }
 }

@@ -1,31 +1,46 @@
 package org.linlinjava.litemall.admin.web;
 
+import cn.hutool.core.codec.Base64;
+import cn.hutool.crypto.asymmetric.KeyType;
+import cn.hutool.crypto.asymmetric.RSA;
+import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.*;
 import org.apache.shiro.authz.annotation.RequiresAuthentication;
 import org.apache.shiro.subject.Subject;
+import org.linlinjava.litemall.admin.dto.AdminIntegration;
+import org.linlinjava.litemall.admin.service.IntegrationService;
 import org.linlinjava.litemall.admin.service.LogHelper;
 import org.linlinjava.litemall.admin.util.JwtHelper;
 import org.linlinjava.litemall.admin.util.Permission;
 import org.linlinjava.litemall.admin.util.PermissionUtil;
+import org.linlinjava.litemall.core.config.IntegrationProperties;
 import org.linlinjava.litemall.core.util.IpUtil;
 import org.linlinjava.litemall.core.util.JacksonUtil;
 import org.linlinjava.litemall.core.util.ResponseUtil;
 import org.linlinjava.litemall.core.util.bcrypt.BCryptPasswordEncoder;
+import org.linlinjava.litemall.db.domain.Admin;
 import org.linlinjava.litemall.db.domain.LitemallAdmin;
+import org.linlinjava.litemall.db.domain.LitemallAdminIntegration;
+import org.linlinjava.litemall.db.service.LitemallAdminIntegrationService;
 import org.linlinjava.litemall.db.service.LitemallAdminService;
 import org.linlinjava.litemall.db.service.LitemallPermissionService;
 import org.linlinjava.litemall.db.service.LitemallRoleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.*;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
 import javax.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -34,6 +49,7 @@ import static org.linlinjava.litemall.admin.util.AdminResponseCode.ADMIN_INVALID
 @RestController
 @RequestMapping("/admin/auth")
 @Validated
+@Slf4j
 public class AdminAuthController {
     private final Log logger = LogFactory.getLog(AdminAuthController.class);
 
@@ -45,7 +61,10 @@ public class AdminAuthController {
     private LitemallPermissionService permissionService;
     @Autowired
     private LogHelper logHelper;
-
+    @Autowired
+    private IntegrationProperties integrationProperties;
+    @Autowired
+    private IntegrationService integrationService;
     /*
      *  { username : value, password : value }
      */
@@ -58,13 +77,8 @@ public class AdminAuthController {
             return ResponseUtil.badArgument();
         }
 
-//        Subject currentUser = SecurityUtils.getSubject();
         LitemallAdmin admin;
         try {
-//            currentUser.login(new UsernamePasswordToken(username, password));
-//            String username = upToken.getUsername();
-//            String password = new String(upToken.getPassword());
-
             if (StringUtils.isEmpty(username)) {
                 throw new AccountException("用户名不能为空");
             }
@@ -72,9 +86,9 @@ public class AdminAuthController {
                 throw new AccountException("密码不能为空");
             }
 
-//            if (integrationProperties.isEnable()) {
-//                admin = integrationLogin(username, password);
-//            } else {
+            if (integrationProperties.isEnable()) {
+                admin = integrationService.integrationLogin(username, password);
+            } else {
                 List<LitemallAdmin> adminList = adminService.findAdmin(username);
                 Assert.state(adminList.size() < 2, "同一个用户名存在两个账户");
                 if (adminList.size() == 0) {
@@ -87,7 +101,7 @@ public class AdminAuthController {
                 if (!encoder.matches(password, admin.getPassword())) {
                     throw new UnknownAccountException("找不到用户（" + username + "）的帐号信息");
                 }
-//            }
+            }
         } catch (UnknownAccountException uae) {
             logHelper.logAuthFail("登录", "用户帐号或密码不正确");
             return ResponseUtil.fail(ADMIN_INVALID_ACCOUNT, "用户帐号或密码不正确");
@@ -115,7 +129,11 @@ public class AdminAuthController {
 
         Map<Object, Object> result = new HashMap<Object, Object>();
 //        result.put("token", currentUser.getSession().getId());
-        result.put("token", JwtHelper.createToken(admin));
+        if (admin instanceof Admin) {
+            result.put("token", ((Admin) admin).getBearerToken());
+        } else {
+            result.put("token", JwtHelper.createToken(admin));
+        }
         result.put("adminInfo", adminInfo);
         return ResponseUtil.ok(result);
     }

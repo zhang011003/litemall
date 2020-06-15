@@ -52,13 +52,21 @@ public class LitemallCategoryService {
         LitemallCategoryExample example = new LitemallCategoryExample();
         LitemallCategoryExample.Criteria criteria = example.or().andLevelEqualTo("L1").andDeletedEqualTo(false);
         if (!includeEmptyGoods) {
-            List<LitemallGoods> litemallGoods = goodsService.querySelective(new LitemallGoods(), LitemallGoods.Column.categoryId);
+            List<LitemallGoods> litemallGoods = goodsService.querySelective(new LitemallGoods(), LitemallGoods.Column.id, LitemallGoods.Column.categoryId);
             Set<Integer> categoryIds = litemallGoods.stream().map(LitemallGoods::getCategoryId).collect(Collectors.toSet());
             LitemallCategoryExample l2Example = new LitemallCategoryExample();
-            l2Example.createCriteria().andIdIn(Lists.newArrayList(categoryIds));
-            List<LitemallCategory> categories = categoryMapper.selectByExampleSelective(l2Example, LitemallCategory.Column.pid);
-            Set<Integer> pids = categories.stream().map(LitemallCategory::getPid).collect(Collectors.toSet());
-            criteria.andIdIn(Lists.newArrayList(pids));
+            if (categoryIds.size() > 0) {
+                l2Example.createCriteria().andIdIn(Lists.newArrayList(categoryIds));
+                List<LitemallCategory> categories = categoryMapper.selectByExampleSelective(l2Example, LitemallCategory.Column.pid);
+                Set<Integer> pids = categories.stream().map(LitemallCategory::getPid).collect(Collectors.toSet());
+                if (pids.size() > 0) {
+                    criteria.andIdIn(Lists.newArrayList(pids));
+                } else {
+                    return Lists.newArrayList();
+                }
+            } else {
+                return Lists.newArrayList();
+            }
         }
         return categoryMapper.selectByExample(example);
     }

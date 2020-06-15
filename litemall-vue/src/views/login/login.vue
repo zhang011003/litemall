@@ -8,7 +8,7 @@
 	</div>
 
     <md-field-group>
-      <md-field
+      <!--<md-field
         v-model="account"
         icon="username"
         placeholder="请输入账号"
@@ -38,13 +38,15 @@
         </div>
       </div>
 
-      <van-button size="large" type="danger" :loading="isLogining" @click="loginSubmit">登录</van-button>
+      <van-button size="large" type="danger" :loading="isLogining" @click="loginSubmit">登录</van-button> -->
+        <van-button size="large" type="primary" :loading="isLogining" @click="loginByWeiXin">微信登录</van-button>
     </md-field-group>
+        <!--
       <div class="bottom_positon" style="text-align: center; bottom:50px">
           <img src="../../assets/images/icon32_wx_logo.png" @click="loginByWeiXin" width="32" height="32"/>
       </div>
       <div class="text-desc text-center bottom_positon">技术支持: litemall</div>
-
+      -->
 	</div>
 </template>
 

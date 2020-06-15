@@ -2,10 +2,15 @@ package org.linlinjava.litemall.db.service;
 
 import com.github.pagehelper.PageHelper;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import lombok.extern.slf4j.Slf4j;
 import org.linlinjava.litemall.db.dao.LitemallGoodsMapper;
 import org.linlinjava.litemall.db.domain.LitemallGoods;
 import org.linlinjava.litemall.db.domain.LitemallGoods.Column;
 import org.linlinjava.litemall.db.domain.LitemallGoodsExample;
+import org.linlinjava.litemall.db.domain.LitemallGoodsExtraInfo;
+import org.linlinjava.litemall.db.domain.LitemallGoodsProductAgent;
+import org.linlinjava.litemall.db.util.AgentHolder;
 import org.linlinjava.litemall.db.util.QueryUtil;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -15,14 +20,22 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class LitemallGoodsService {
     Column[] columns = new Column[]{Column.id, Column.name, Column.brief, Column.picUrl, Column.isHot, Column.isNew, Column.counterPrice, Column.retailPrice};
     @Resource
     private LitemallGoodsMapper goodsMapper;
     @Resource
     private GoodsAgentService goodsAgentService;
+    @Resource
+    private LitemallGoodsExtraInfoService goodsExtraInfoService;
+    @Resource
+    private LitemallGoodsProductAgentService gpaService;
 
     /**
      * 获取热卖商品
@@ -139,7 +152,9 @@ public class LitemallGoodsService {
             criteria2.andIdIn(goodsIds);
         }
         PageHelper.startPage(offset, limit);
-        return goodsMapper.selectByExampleSelective(example, columns);
+
+        List<LitemallGoods> goodsList = goodsMapper.selectByExampleSelective(example, columns);
+        return this.modifyGoods(goodsList);
     }
 
     public List<LitemallGoods> querySelective(Integer goodsId, String goodsSn, String name, Integer page, Integer size, String sort, String order) {
@@ -274,6 +289,7 @@ public class LitemallGoodsService {
         }
 
         List<LitemallGoods> goodsList = goodsMapper.selectByExampleSelective(example, Column.categoryId);
+        goodsList = this.modifyGoods(goodsList);
         List<Integer> cats = new ArrayList<Integer>();
         for (LitemallGoods goods : goodsList) {
             cats.add(goods.getCategoryId());
@@ -301,13 +317,66 @@ public class LitemallGoodsService {
 
     public List<LitemallGoods> querySelective(LitemallGoods goods, LitemallGoods.Column... columns) {
         LitemallGoodsExample example = QueryUtil.constructExampleInstance(goods, LitemallGoodsExample.class);
+        LitemallGoodsExample.Criteria criteria = example.getOredCriteria().get(0);
+        criteria.andIsOnSaleEqualTo(true);
 
         // 如果没有按照id查，则指定id查询
         if (goods.getId() == null) {
             List<Integer> goodsIds = goodsAgentService.getGoodsIds();
-            LitemallGoodsExample.Criteria criteria = example.getOredCriteria().get(0);
-            criteria.andIdIn(goodsIds);
+            if (goodsIds.size() > 0) {
+                criteria.andIdIn(goodsIds);
+            }
         }
-        return goodsMapper.selectByExampleSelective(example, columns);
+
+        List<Column> columnList;
+        if (columns != null) {
+            columnList = Lists.newArrayList(columns);
+            if (!columnList.contains(Column.id)) {
+                columnList.add(Column.id);
+            }
+        } else {
+            columnList = Lists.newArrayListWithCapacity(1);
+            columnList.add(Column.id);
+        }
+        return this.modifyGoods(goodsMapper.selectByExampleSelective(example, columnList.toArray(new Column[columnList.size()])));
+    }
+
+    /**
+     * 过滤掉不可见的商品
+     * @param goodsList
+     * @return
+     */
+    private List<LitemallGoods> modifyGoods(List<LitemallGoods> goodsList) {
+        log.info("Begin to modify goods attribute, include filter isShown, modify retailPrice");
+        final Map<Integer, LitemallGoodsExtraInfo> extraInfoMap;
+        if (goodsList.size() > 0) {
+            List<Integer> goodsIdList = goodsList.stream().map(LitemallGoods::getId).collect(Collectors.toList());
+            List<LitemallGoodsExtraInfo> extraInfoList = goodsExtraInfoService.queryByGoodsidsAndAdminId(goodsIdList, AgentHolder.getAgent().getId());
+            extraInfoMap = extraInfoList.stream().collect(Collectors.toMap(LitemallGoodsExtraInfo::getGoodsId, Function.identity()));
+        } else {
+            extraInfoMap = Maps.newHashMap();
+        }
+
+        List<LitemallGoodsProductAgent> gpaList = gpaService.queryByAgentId(AgentHolder.getAgent().getId());
+        Map<Integer, LitemallGoodsProductAgent> gpaMap = gpaList.stream().collect(Collectors.toMap(LitemallGoodsProductAgent::getGoodsId, Function.identity(), (a, b) -> {
+            if (a.getPrice().compareTo(b.getPrice()) < 0) {
+                return a;
+            } else {
+                return b;
+            }
+        }));
+        LitemallGoodsExtraInfo defaultExtraInfo = new LitemallGoodsExtraInfo();
+        defaultExtraInfo.setIsShow(true);
+
+        List<LitemallGoods> collect = goodsList.stream().filter(goods -> extraInfoMap.getOrDefault(goods.getId(), defaultExtraInfo).getIsShow())
+                .map(goods -> {
+                    if (gpaMap.get(goods.getId()) != null) {
+                        goods.setRetailPrice(gpaMap.get(goods.getId()).getPrice());
+                    }
+                    return goods;
+                })
+                .collect(Collectors.toList());
+        log.info("End to to modify goods attribute");
+        return collect;
     }
 }

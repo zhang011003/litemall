@@ -216,7 +216,7 @@ public class AdminAftersaleController {
             for (LitemallOrderGoods orderGoods : orderGoodsList) {
                 Integer productId = orderGoods.getProductId();
                 Short number = orderGoods.getNumber();
-                goodsProductService.addStock(productId, number);
+                goodsProductService.addStock(productId, number, order.getAdminId());
             }
         }
 

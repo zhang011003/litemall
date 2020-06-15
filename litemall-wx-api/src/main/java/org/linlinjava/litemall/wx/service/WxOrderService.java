@@ -450,7 +450,7 @@ public class WxOrderService {
             if (remainNumber < 0) {
                 throw new RuntimeException("下单的商品货品数量大于库存量");
             }
-            if (productService.reduceStock(productId, checkGoods.getNumber()) == 0) {
+            if (productService.reduceStock(productId, checkGoods.getNumber(), AgentHolder.getAgent()) == 0) {
                 throw new RuntimeException("商品货品库存减少失败");
             }
         }
@@ -586,7 +586,7 @@ public class WxOrderService {
         for (LitemallOrderGoods orderGoods : orderGoodsList) {
             Integer productId = orderGoods.getProductId();
             Short number = orderGoods.getNumber();
-            if (productService.addStock(productId, number) == 0) {
+            if (productService.addStock(productId, number, AgentHolder.getAgent()) == 0) {
                 throw new RuntimeException("商品货品库存增加失败");
             }
         }
@@ -631,7 +631,6 @@ public class WxOrderService {
 
         LitemallUser user = userService.findById(userId);
         String openid = user.getWeixinOpenid();
-        openid = "oFpyN0UXZdOdjtMyrGFE49vtY_AM";
         if (openid == null) {
             return ResponseUtil.fail(AUTH_OPENID_UNACCESS, "订单不能支付");
         }
@@ -739,8 +738,6 @@ public class WxOrderService {
 
                 LitemallUser user = userService.findById(userId);
                 String openid = user.getWeixinOpenid();
-                //TODO:
-                openid = "oFpyN0UXZdOdjtMyrGFE49vtY_AM";
 
                 // 参考文档 https://www.yuque.com/leshuazf/doc/zhifujiaoyi#YGAT6
                 String redirectUrl = JacksonUtil.parseString(body, "redirectUrl");

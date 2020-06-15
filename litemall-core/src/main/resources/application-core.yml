@@ -1,5 +1,9 @@
 litemall:
   goods-distribution: true
+  integration:
+    enable: true
+    url: http://iot.szvpay.com/
+    public-key: MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBANL378k3RiZHWx5AfJqdH9xRNBmD9wGD2iRe41HdTNF8RUhNnHit5NpMNtGL0NPTSSpPjjI1kJfVorRvaQerUgkCAwEAAQ==
   leshua:
     url: https://paygate.leshuazf.com/
     merchant_id: 4014116132
@@ -99,7 +103,7 @@ litemall:
     local:
       storagePath: storage
       # 这个地方应该是wx模块的WxStorageController的fetch方法对应的地址
-      address: http://localhost:8080/wx/storage/fetch/
+      address: http://localhost:8080/admin/storage/fetch/
     # 阿里云对象存储配置信息
     aliyun:
       endpoint: oss-cn-shenzhen.aliyuncs.com

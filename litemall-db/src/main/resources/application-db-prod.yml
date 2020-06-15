@@ -1,0 +1,30 @@
+pagehelper:
+  helperDialect:  mysql
+  reasonable: true
+  supportMethodsArguments:  true
+  params: count=countSql
+
+spring:
+  datasource:
+    druid:
+      driver-class-name:  com.mysql.jdbc.Driver
+      url: jdbc:mysql://39.98.150.35:3307/litemall?serverTimezone=Asia/Shanghai&characterEncoding=utf8&useSSL=false
+      username: root
+      password: bl6oTp3P/PQOIY6NgMnHVdJwWvA4YdRRtHnbPj6ORSZFrQQK2uRTMW7gDSkZf4y6Y1jGC/77zPTzcbxVb0oJnw==
+      initial-size:  10
+      max-active:  50
+      min-idle:  10
+      max-wait:  60000
+      pool-prepared-statements:  true
+      max-pool-prepared-statement-per-connection-size:  20
+      validation-query:  SELECT 1 FROM DUAL
+      test-on-borrow:  false
+      test-on-return:  false
+      test-while-idle:  true
+      time-between-eviction-runs-millis:  60000
+      filters:  stat,wall,config
+      connectionProperties: config.decrypt=true;config.decrypt.key=${jdbc.publicKey};druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
+
+jdbc:
+  publicKey: MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAJKAnrIhgXWRahDxs0WVVUkko/D91uKR4nAkQiUZpoJVUsIDbLJ4+eLllT5R25kyx4UC8vluza2YE2lWKP9XymkCAwEAAQ==
+

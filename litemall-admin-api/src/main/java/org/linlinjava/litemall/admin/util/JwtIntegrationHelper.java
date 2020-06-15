@@ -1,0 +1,39 @@
+package org.linlinjava.litemall.admin.util;
+
+import cn.hutool.core.codec.Base64;
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTVerifier;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTCreationException;
+import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.interfaces.Claim;
+import com.auth0.jwt.interfaces.DecodedJWT;
+import org.apache.shiro.SecurityUtils;
+import org.linlinjava.litemall.db.domain.LitemallAdmin;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+public class JwtIntegrationHelper {
+	private static final String SECRET = "ZmQ0ZGI5NjQ0MDQwY2I4MjMxY2Y3ZmI3MjdhN2ZmMjNhODViOTg1ZGE0NTBjMGM4NDA5NzYxMjdjOWMwYWRmZTBlZjlhNGY3ZTg4Y2U3YTE1ODVkZDU5Y2Y3OGYwZWE1NzUzNWQ2YjFjZDc0NGMxZWU2MmQ3MjY1NzJmNTE0MzI=";
+	public static <T> T verifyTokenAndGetUserInfo(String token, String key, Class<T> clazz) {
+		try {
+			Algorithm algorithm = Algorithm.HMAC512(Base64.decode(SECRET));
+			JWTVerifier verifier = JWT.require(algorithm)
+					.build();
+			DecodedJWT jwt = verifier.verify(token);
+			Map<String, Claim> claims = jwt.getClaims();
+			Claim claim = claims.get(key);
+			return claim.as(clazz);
+		} catch (JWTVerificationException exception){
+			exception.printStackTrace();
+		}
+
+		return null;
+	}
+
+	public static void main(String[] args) {
+		String token = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbiIsImF1dGgiOiJhZ2VudFJlbGF0aW9uQ2hhbmdlOmFkZCxkZXB0OmVkaXQsc3RvcmFnZTphZGQsd3hVc2VySW52ZXN0T3JkZXI6bGlzdFBhZ2UsZGVwdDphZGQsc2ltSW5mbzpkZXRhaWwsYWdlbnQ6bGlzdCxhZ2VudDpkZWwsbWVudTpkZWwsam9iOmVkaXQsZGVwbG95SGlzdG9yeTpsaXN0LGRpY3Q6YWRkLHd4VXNlckNoYW5nZVJlY29yZDpsaXN0UGFnZSxkZXB0Omxpc3QscG9zdGFnZU9yZGVyOmxpc3RQYWdlLGpvYjpsaXN0LGRpY3Q6ZGVsLHd4VXNlckNoYW5nZVNpbTpsaXN0UGFnZSxkaWN0Omxpc3QsYWdlbnRBY2NvdW50RmxvdzpsaXN0UGFnZSxjb21wbGFpbnRzU3VnZ2VzdGlvbnM6bGlzdFBhZ2UscGtnOmVkaXQsc3lzTm90aWNlOmxpc3RQYWdlLGRhdGFiYXNlOmxpc3QsdGltaW5nOmxpc3QsZGVwbG95Omxpc3Qsc2ltSW5mbzppbXBvcnQscG9sbGluZ1JlY29yZDpsaXN0UGFnZSxwaWN0dXJlczpsaXN0LHBrZ1B1cmNoYXNlT3JkZXI6bGlzdFBhZ2UsbWVudTplZGl0LHNpbUluZm9JbXBvcnRSZWNvcmQ6bGlzdCxtZW51Omxpc3Qsc3RvcmFnZTpkZWwsYWdlbnQ6ZWRpdCxyZW1vdGVQa2dPcmRlcjpsaXN0UGFnZSxhZ2VudENhc2hvdXQ6YXBwcm92ZSxzaW1JbmZvOnJlY292ZXJ5LGNvbGxlY3RDb25maWc6bGlzdFBhZ2UscG9sbGluZ1JlY29yZERldGFpbDpsaXN0UGFnZSxkaWN0OmVkaXQsYWdlbnQ6YWRkLGRlcHQ6ZGVsLHVzZXI6bGlzdCx3eFVzZXJBY2NvdW50RmxvdzpsaXN0UGFnZSxzdG9yYWdlOmVkaXQscGtnT3JkZXI6bGlzdCxyb2xlczpkZWwsYWRtaW4sdXNlcjpyZXNldExvZ2luUGFzcyxzdG9yYWdlOmxpc3QscGtnOmltcG9ydCx1c2VyOmRlbCxzZXJ2ZXI6bGlzdCxwa2dTb2xkOmxpc3Qsd3hVc2VyV29ya09yZGVyOmxpc3RQYWdlLHJlZnVuZE9yZGVyOmxpc3RQYWdlLHRpbWluZzphZGQscG9zdGFnZU9yZGVyOmFwcHJvdmVSZWZ1bmQsYXBwOmxpc3Qsd3hVc2VyQWNjb3VudDpsaXN0UGFnZSxqb2I6YWRkLGFnZW50SW52ZXN0T3JkZXI6bGlzdFBhZ2UsYWdlbnRSZWxhdGlvbkNoYW5nZTpsaXN0UGFnZSxyb2xlczphZGQsdXNlcjphZGQsY29tcGxhaW50c1N1Z2dlc3Rpb25zOmVkaXQscGF5Q29uZmlnOmxpc3RQYWdlLHBrZ0dyb3VwOmxpc3Qsc2ltSW5mb1BrZ2dyb3VwQ2hhbmdlcmVjb3JkOmxpc3QscGtnOmxpc3QsdGltaW5nOmVkaXQsc3lzQ29uZmlnOmxpc3RQYWdlLHJvbGVzOmxpc3Qsd3hVc2VyQ2hhbmdlU2xvdDpsaXN0UGFnZSxtZW51OmFkZCxqb2I6ZGVsLHN5c0NvbmZpZzplZGl0LHVzZXI6ZWRpdCxyb2xlczplZGl0LGRvd25UYXNrOmxpc3RQYWdlLGFnZW50Q2FzaG91dDpsaXN0UGFnZSx0aW1pbmc6ZGVsLHNvbGRSZWNvcmQ6bGlzdCxzZXJ2ZXJEZXBsb3k6bGlzdCxzaW1JbmZvOmxpc3QsYWdlbnRBY2NvdW50OmxvYWRNeWFjY291bnQifQ.gteTk5K8-RMoDGY1HJWFc-u3BGHY8Qxtl8cn9klfo3zw2Nopgm67nH4Xt4kBB7dIjo3xD1rlNbH97sE5AG9N2g";
+		System.out.println(JwtIntegrationHelper.verifyTokenAndGetUserInfo(token, "sub", String.class));
+	}
+}

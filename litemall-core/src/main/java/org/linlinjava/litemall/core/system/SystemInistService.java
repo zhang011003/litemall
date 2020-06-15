@@ -56,6 +56,7 @@ class SystemInistService {
         DEFAULT_CONFIGS.put(SystemConfig.LITEMALL_MALL_LONGITUDE, "121.587839");
         DEFAULT_CONFIGS.put(SystemConfig.LITEMALL_MALL_PHONE, "021-xxxx-xxxx");
         DEFAULT_CONFIGS.put(SystemConfig.LITEMALL_MALL_QQ, "705144434");
+        DEFAULT_CONFIGS.put(SystemConfig.LITEMALL_MALL_DOMAIN, "www.xxx.com");
     }
 
     @Autowired

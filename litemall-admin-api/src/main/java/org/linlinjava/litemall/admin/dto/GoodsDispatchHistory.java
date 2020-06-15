@@ -11,4 +11,5 @@ public class GoodsDispatchHistory {
     private LitemallGoods goods;
     private LitemallGoodsProduct product;
     private String userName;
+    private String nickName;
 }

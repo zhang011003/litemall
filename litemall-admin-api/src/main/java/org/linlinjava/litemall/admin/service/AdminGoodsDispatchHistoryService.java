@@ -87,9 +87,9 @@ public class AdminGoodsDispatchHistoryService {
                 dto.setGoods(goodsMap.get(tmpHistory.getGoodsId()));
                 dto.setProduct(goodsProductMap.get(tmpHistory.getGoodsProductId()));
                 if (type == 1) {
-                    dto.setUserName(adminService.findAdmin(tmpHistory.getAgentId(), LitemallAdmin.Column.username).getUsername());
+                    dto.setNickName(adminService.findAdmin(tmpHistory.getAgentId(), LitemallAdmin.Column.nickname).getNickname());
                 } else {
-                    dto.setUserName(adminService.findAdmin(tmpHistory.getParentAgentId(), LitemallAdmin.Column.username).getUsername());
+                    dto.setNickName(adminService.findAdmin(tmpHistory.getParentAgentId(), LitemallAdmin.Column.nickname).getNickname());
                 }
                 histories.add(dto);
             }

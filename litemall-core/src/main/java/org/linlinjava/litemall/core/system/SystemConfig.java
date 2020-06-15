@@ -38,16 +38,17 @@ public class SystemConfig {
     public final static String LITEMALL_MALL_QQ = "litemall_mall_qq";
     public final static String LITEMALL_MALL_LONGITUDE = "litemall_mall_longitude";
     public final static String LITEMALL_MALL_Latitude = "litemall_mall_latitude";
+    public final static String LITEMALL_MALL_DOMAIN = "litemall_mall_domain";
 
     //所有的配置均保存在该 HashMap 中
     private static Map<String, String> SYSTEM_CONFIGS = new HashMap<>();
 
-    private static String getConfig(String keyName) {
+    public static String getConfig(String keyName) {
         Map<String, String> config = getConfig(keyName, false);
         return config.getOrDefault(keyName, null);
     }
 
-    private static Map<String, String> getConfig(String keyName, boolean useAntPattern) {
+    public static Map<String, String> getConfig(String keyName, boolean useAntPattern) {
         Map<String, String> configValues = Maps.newHashMap();
         if (useAntPattern) {
             PathMatcher pathMatcher = new AntPathMatcher();

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.shiro.web.filter.authc.BasicHttpAuthenticationFilter;
 import org.linlinjava.litemall.admin.util.Consts;
 import org.linlinjava.litemall.admin.util.JwtHelper;
+import org.linlinjava.litemall.admin.util.JwtIntegrationHelper;
 
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -19,8 +20,7 @@ public class JWTFilter extends BasicHttpAuthenticationFilter {
         HttpServletRequest req = (HttpServletRequest) request;
         log.info("Invoke executeLogin,{}", req.getRequestURI());
         String adminToken = req.getHeader(Consts.HEADER_ADMIN_TOKEN);
-        String userName = JwtHelper.verifyTokenAndGetUserInfo(adminToken, "userName", String.class);
-        JWTToken token = new JWTToken(userName, adminToken);
+        JWTToken token = new JWTToken(adminToken);
         getSubject(request, response).login(token);
         return true;
     }

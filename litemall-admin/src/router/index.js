@@ -613,7 +613,8 @@ export const asyncRouterMap = [
         path: 'http://www.kdniao.com/api-track',
         meta: { title: '快递鸟', icon: 'link' }
       }
-    ]
+    ],
+    hidden: true
   },
   {
     path: '/profile',

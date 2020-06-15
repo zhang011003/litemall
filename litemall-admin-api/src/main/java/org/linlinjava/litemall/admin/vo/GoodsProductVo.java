@@ -13,4 +13,5 @@ public class GoodsProductVo {
     private BigDecimal basePrice;
     private Integer number;
     private String url;
+    private BigDecimal dispatchPrice;
 }
